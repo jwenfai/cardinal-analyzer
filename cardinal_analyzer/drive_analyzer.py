@@ -65,6 +65,7 @@ def record_stat(root):
                     })
                 except OSError:
                     pass
+        dir_stat = os.stat(dirpath)
         dir_dict[dirorder] = {
             'dirname': os.path.split(dirpath)[1],
             'dirparent': dirparent,
@@ -73,6 +74,16 @@ def record_stat(root):
             'nfiles': len(filenames),
             'cumfiles': len(filenames),
             'filestat': filestat_list,
+            'mode': dir_stat.st_mode,
+            'ino': dir_stat.st_ino,
+            'dev': dir_stat.st_dev,
+            'nlink': dir_stat.st_nlink,
+            'uid': dir_stat.st_uid,
+            'gid': dir_stat.st_gid,
+            'size': dir_stat.st_size,
+            'atime': dir_stat.st_atime,
+            'mtime': dir_stat.st_mtime,
+            'ctime': dir_stat.st_ctime,
             'aggfilestat': None
         }
         order_dict[dirpath] = dirorder
