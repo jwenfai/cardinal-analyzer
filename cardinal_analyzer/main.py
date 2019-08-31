@@ -96,7 +96,7 @@ class Main(QWizard):
         self.ui.select_btn_0.clicked.connect(self.show_file_dialog_0)
         self.ui.save_btn_0.clicked.connect(self.save_collected_data_0)
 
-        og_model_headers = ['Folder Name', 'Accessible Files', 'Accessible Files (Recalculated)']
+        og_model_headers = ['Folder Name', 'Exclude', 'Accessible Files']
         # Initialize model and tree for root 0
         self.og_model_0 = QStandardItemModel()
         self.ui.og_tree_0.setModel(self.og_model_0)
@@ -132,14 +132,14 @@ class Main(QWizard):
         if dirkey in dir_dict:
             dirname = QStandardItem(dir_dict[dirkey]['dirname'])
             cumfiles = QStandardItem(str(dir_dict[dirkey]['cumfiles']))
-            cumfiles2 = QStandardItem(str(dir_dict[dirkey]['cumfiles']))
+            exclusion = QStandardItem('')
             # dirname_edited = QStandardItem(dir_dict[dirkey]['dirname'])
             # nfiles = QStandardItem(str(dir_dict[dirkey]['nfiles']))
             # if anon_tree:
             #     items = [dirname, cumfiles]
             # else:
             #     items = [dirname, dirname_edited, cumfiles]
-            items = [dirname, cumfiles, cumfiles2]
+            items = [dirname, exclusion, cumfiles]
             dirname.setData(dirkey, Qt.UserRole)
             # dirname_edited.setData(dirkey, Qt.UserRole)
             if checkable:
@@ -147,8 +147,12 @@ class Main(QWizard):
                     Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
                     Qt.ItemIsUserCheckable)
                 dirname.setCheckState(Qt.Checked)
+                exclusion.setFlags(
+                    Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
+                    Qt.ItemIsUserCheckable)
+                # exclusion.setCheckState(Qt.Checked)
+                exclusion.setCheckState(Qt.Unchecked)
                 cumfiles.setFlags(Qt.ItemIsEnabled)
-                cumfiles2.setFlags(Qt.ItemIsEnabled)
                 # dirname_edited.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
                 # nfiles.setFlags(Qt.ItemIsEnabled)
             parent_item.appendRow(items)
@@ -176,6 +180,9 @@ class Main(QWizard):
                             item, child_ix, item_checkstate)
             if parent_item is not None:
                 child_ix = item.row()
+                # if parent_item.child(child_ix, 1).checkState() == Qt.PartiallyChecked:
+                #     pass
+                # else:
                 self.propagate_checkstate_child(
                     parent_item, child_ix, item_checkstate)
                 self.propagate_checkstate_parent(
@@ -192,6 +199,8 @@ class Main(QWizard):
         #     self.renamed_items_dict[dirkey] = item.text()
         # self.preview_btn.setEnabled(True)
         # self.save_btn.setDisabled(True)
+        if item.column() == 1:
+            self.dir_exclusion(item, self.og_model_0.invisibleRootItem())
 
     def propagate_checkstate_child(
             self, parent_item, child_ix, parent_checkstate):
@@ -234,16 +243,6 @@ class Main(QWizard):
                     break
         return all_checked
 
-
-
-
-
-
-
-
-
-
-
     def recalculate_cumfiles_0(self):
         replacement_cumfiles_list = []
         excluded = self.unchecked_items_set_0
@@ -256,183 +255,93 @@ class Main(QWizard):
                 self.anon_dir_dict_0[dirkey]['cumfiles'] += self.anon_dir_dict_0[childkey]['cumfiles']
             replacement_cumfiles_list.append(str(self.anon_dir_dict_0[dirkey]['cumfiles']))
         replacement_cumfiles_list = replacement_cumfiles_list[::-1]
-        print(replacement_cumfiles_list, excluded)
         counter = 0
         for child_ix in range(self.og_model_0.invisibleRootItem().rowCount()):
             self.og_model_0.invisibleRootItem().child(child_ix, 2).setText(replacement_cumfiles_list[counter])
             counter += 1
 
-
-    def find_cumfiles(self, item, cumfiles_col=2):
-        parent_item = item.parent()
+    def dir_exclusion(self, item, root):
+        """ if directory is excluded, user cannot check directory until
+        'exclusion' is unchecked """
         item_row = item.row()
-        if parent_item is not None:
-            return int(parent_item.child(item_row, cumfiles_col).text())
-        elif parent_item is None:  # top-level item with invisible root
-            return int(item.model().item(item_row, cumfiles_col).text())
-
-    def find_item(self, item, item_col=0):
-        parent_item = item.parent()
-        item_row = item.row()
-        if parent_item is not None:
-            return parent_item.child(item_row, item_col)
-        elif parent_item is None:  # top-level item with invisible root
-            return item.model().item(item_row, item_col)
-
-    def siblings_same_checkstate(self, item):
-        item_checkstate = item.checkState()
-        same_checkstate = True
-        parent_item = item.parent()
-        if parent_item is not None:
-            nchild = parent_item.rowCount()
-            for child_ix in range(nchild):
-                if item_checkstate != parent_item.child(child_ix).checkState():
-                    same_checkstate = False
-                    break
-        return same_checkstate
-
-    def propagate_parent_checkstate_cumfiles(self, item):
-        # Based on checkstate cycling order:
-        # (1) Unchecked to PartiallyChecked to Checked
-        # (2) Unchecked to Checked
-        item_checkstate = item.checkState()
-        item_cumfiles = self.find_cumfiles(item)
+        exclusion_checkstate = item.checkState()
         if item.parent() is not None:
-            parent_item = self.find_item(item.parent())
-            parent_cumfiles = self.find_cumfiles(parent_item)
-            parent_cumfiles_text = self.find_item(item.parent(), item_col=2)
-            if item_checkstate == Qt.Unchecked:
-                # following applies to parent_checkstate == Qt.PartiallyChecked or Qt.Checked
-                # because item_checkstate changing to Qt.Unchecked is impossible
-                # if parent_checkstate == Qt.Unchecked in the first place
-                parent_cumfiles_text.setText(str(parent_cumfiles - item_cumfiles))
-                # same_checkstate = self.siblings_same_checkstate(item)
-                # if same_checkstate:
-                #     parent_item.setCheckState(Qt.PartiallyChecked)
-                #     # deselecting all children != deselecting parent
-            elif item_checkstate == Qt.PartiallyChecked:
-                # following applies to  parent_checkstate == Qt.Unchecked or Qt.PartiallyChecked
-                # because item_checkstate changing to Qt.PartiallyChecked is impossible
-                # if parent_checkstate == Qt.Checked in the first place
-                parent_cumfiles_text.setText(str(parent_cumfiles + item_cumfiles))
-                # parent_item.setCheckState(Qt.PartiallyChecked)
-            elif item_checkstate == Qt.Checked:
-                # following applies to parent_checkstate == Qt.Unchecked or Qt.PartiallyChecked
-                # because item_checkstate changing to Qt.Checked is impossible
-                # if parent_checkstate == Qt.Checked in the first place
-                parent_cumfiles_text.setText(str(parent_cumfiles + item_cumfiles))
-                # same_checkstate = self.siblings_same_checkstate(item)
-                # if same_checkstate:
-                #     parent_item.setCheckState(Qt.Checked)
-                #     # this does not cover the case where someone selects all
-                #     # subfolders but exclude the files from parent directory but
-                #     # there is no elegant solution to that edge case
+            parent = item.parent()
+        else:
+            parent = root
+        if exclusion_checkstate == Qt.Unchecked:
+            flags = Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable
+            dir_checkstate = Qt.Checked
+            self.propagate_exclusion_child(
+                parent, item_row, flags, exclusion_checkstate, dir_checkstate)
+        elif exclusion_checkstate == Qt.PartiallyChecked:
+            item = parent.child(item_row, 0)
+            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.PartiallyChecked)
+            flags = Qt.ItemIsUserTristate
+            dir_checkstate = Qt.Unchecked
+            exclusion_checkstate = Qt.Checked
+            for child_ix in range(item.rowCount()):
+                self.propagate_exclusion_child(
+                    item, child_ix, flags, exclusion_checkstate, dir_checkstate)
+        elif exclusion_checkstate == Qt.Checked:
+            flags = Qt.ItemIsUserTristate
+            dir_checkstate = Qt.Unchecked
+            self.propagate_exclusion_child(
+                parent, item_row, flags, exclusion_checkstate, dir_checkstate)
 
-    def get_parents(self, item, parents_set):
-        """ Identify parents, grandparents etc to propagate cumulative file
-        count changes to. """
-        print(item.text())
-        parent_item = item.parent()
-        if parent_item is not None:
-            parent_dirkey = parent_item.data(Qt.UserRole)
-            parents_set.update({parent_dirkey})
-            print(parent_dirkey, parents_set)
-            self.get_parents(parent_item, parents_set)
+    def propagate_exclusion_child(
+            self, parent_item, child_ix, flags, exclusion_checkstate,
+            dir_checkstate):
+        """ If parent directory has been excluded, exclude children too. """
+        parent_item.child(child_ix, 0).setFlags(flags)
+        # print(parent_item.child(child_ix, 0).text(), exclusion_checkstate, dir_checkstate)
+        if exclusion_checkstate is not None:
+            parent_item.child(child_ix, 1).setCheckState(exclusion_checkstate)
+        if dir_checkstate is not None:
+            parent_item.child(child_ix, 0).setCheckState(dir_checkstate)
+        parent_item = parent_item.child(child_ix, 0)
+        for child_ix in range(parent_item.rowCount()):
+            self.propagate_exclusion_child(
+                parent_item, child_ix, flags, exclusion_checkstate, dir_checkstate)
 
-    def propagate_cumfiles_old(
-            self, item, initiator_checkstate=None, initiator_diff=None):
-        """
-        *****************Untested!!!********************
-        Update cumulative file counts
-        initiator_checkstate: checkstate of the first item that was
-        checked/unchecked that prompted the whole cascade
-        initiator_diff: the difference in file count values that will be
-        propagated unchanged
-        """
-        # item_row = item.row()
-        # print(item.row(), item.column(), -int(self.og_model_0.item(item_row, 2).text()))
-        # print(str(int(self.og_model_0.item(1, 1).text())-8))
-        # print(self.og_model_0.item(0, 0).child(0, 0).row(), self.og_model_0.item(0, 0).child(0, 0).text())
-        # self.og_model_0.setItem(1, 0, QStandardItem('hello'))
-
-        # item_row = item.row()
-        # parent_item = item.parent()
-        # if parent_item:
-        #     print(item_row, parent_item.text())
-        #     parent_item.setChild(item_row, 2, QStandardItem('yeet'))
-
-        # item = QStandardItem('helloworld')
-
+    def dir_exclusion_old(self, item, root):
+        """ if directory is excluded, user cannot check directory until
+        'exclusion' is unchecked """
         item_row = item.row()
-        parent_item = item.parent()
-        if initiator_checkstate is None:
-            initiator_checkstate = item.checkState()
-        if parent_item is not None:
-            parent_row = parent_item.row()
-            grandparent_item = parent_item.parent()
-            if initiator_diff is None:
-                if initiator_checkstate == Qt.Unchecked:
-                    # pass
-                    initiator_diff = -int(parent_item.child(item_row, 2).text())
-                elif initiator_checkstate == Qt.Checked:
-                    # pass
-                    initiator_diff = int(parent_item.child(item_row, 2).text())
-            if grandparent_item is not None:
-                grandparent_item.child(parent_row, 2).setText(str(
-                    int(grandparent_item.child(parent_row, 2).text()) +
-                    initiator_diff))
-            print(item.text(), initiator_diff)
-            self.propagate_cumfiles(
-                parent_item, initiator_checkstate, initiator_diff)
+        exclusion_checkstate = item.checkState()
+        if item.parent() is not None:
+            parent = item.parent()
+        else:
+            parent = root
+        if exclusion_checkstate == Qt.Unchecked:
+            flags = Qt.ItemIsUserTristate
+            dir_checkstate = Qt.Unchecked
+            self.propagate_exclusion_child_old(
+                parent, item_row, flags, exclusion_checkstate, dir_checkstate)
+        elif exclusion_checkstate == Qt.PartiallyChecked:
+            flags = Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable
+            parent.child(item_row, 0).setFlags(flags)
+        elif exclusion_checkstate == Qt.Checked:
+            flags = Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable
+            dir_checkstate = Qt.Checked
+            self.propagate_exclusion_child_old(
+                parent, item_row, flags, exclusion_checkstate, dir_checkstate)
 
-        # item_row = item.row()
-        # parent_item = item.parent()
-        # parent_row = parent_item.row()
-        # # parent_dirkey = parent_item.data(Qt.UserRole)
-        # if initiator_checkstate is None:
-        #     initiator_checkstate = item.checkState()
-        # if parent_item is not None:
-        #     if initiator_diff is None:
-        #         if initiator_checkstate == Qt.Unchecked:
-        #             # initiator_diff = -dir_dict[dirkey]['cumfiles']
-        #             initiator_diff = -int(self.og_model_0.item(item_row, 2).text())
-        #         elif initiator_checkstate == Qt.Checked:
-        #             # initiator_diff = dir_dict[dirkey]['cumfiles']
-        #             initiator_diff = int(self.og_model_0.item(item_row, 2).text())
-        #     # dir_dict[parent_dirkey]['cumfiles'] += initiator_diff
-        #     self.og_model_0.item(parent_row, 2).setText(str(
-        #         int(self.og_model_0.item(parent_row, 2).text()) +
-        #         initiator_diff))
-        #     self.propagate_cumfiles(
-        #         parent_item, initiator_checkstate, initiator_diff)
-        #     # also need to update dir_dict, not just GUI
-
-    # def exclusion_logic(self):
-    #     if excluded is True:
-    #         item.checkState() = Qt.Unchecked  # if excluded,
-    #         item.setFlags(Qt.ItemIsUserTristate)  # if excluded, user cannot check item until 'exclusion' is unchecked
-    #     if excluded is False:
-    #         item.setFlags(
-    #             Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
-    #             Qt.ItemIsUserCheckable)
-    #         # dirname.setFlags(
-    #         #     Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
-    #         #     Qt.ItemIsUserCheckable)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def propagate_exclusion_child_old(
+            self, parent_item, child_ix, flags, exclusion_checkstate,
+            dir_checkstate):
+        """ If parent directory has been excluded, exclude children too. """
+        parent_item.child(child_ix, 0).setFlags(flags)
+        # print(parent_item.child(child_ix, 0).text(), exclusion_checkstate, dir_checkstate)
+        if exclusion_checkstate is not None:
+            parent_item.child(child_ix, 1).setCheckState(exclusion_checkstate)
+        if dir_checkstate is not None:
+            parent_item.child(child_ix, 0).setCheckState(dir_checkstate)
+        parent_item = parent_item.child(child_ix, 0)
+        for child_ix in range(parent_item.rowCount()):
+            self.propagate_exclusion_child(
+                parent_item, child_ix, flags, dir_checkstate, exclusion_checkstate)
 
     def build_tree_structure_threaded_0(self, root_path):
         worker = Worker(record_stat, root_path)
@@ -446,7 +355,6 @@ class Main(QWizard):
         self.unchecked_items_set_0 = set()
         # self.renamed_items_dict_0 = dict()
         self.spinner.start()
-        print('build tree started')
 
     def build_tree_finished_0(self, result):
         """ Status messages when tree building is complete should be
@@ -456,16 +364,13 @@ class Main(QWizard):
         self.refresh_treeview(self.og_model_0, self.ui.og_tree_0, self.og_dir_dict_0)
         self.ui.save_btn_0.setEnabled(True)
         self.spinner.stop()
-        print('build tree stopped')
 
     def show_file_dialog_0(self):
         dirpath = QFileDialog.getExistingDirectory(
             self, 'Select Folder', path_str(self.root_path_0))
         if dirpath:
             self.root_path_0 = Path(dirpath)
-            print('path returned')
             self.folder_edit_0.setText(path_str(self.root_path_0))
-            print('path text set')
             self.build_tree_structure_threaded_0(self.root_path_0)
             # self.ui.save_btn_0.setEnabled(True)
         else:
@@ -501,6 +406,7 @@ class Main(QWizard):
             width = header.sectionSize(column)
             header.setSectionResizeMode(column, QHeaderView.Interactive)
             header.resizeSection(column, width)
+
 
 # the whole app
 if __name__ == '__main__':
