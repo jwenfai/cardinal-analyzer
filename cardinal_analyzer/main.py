@@ -76,14 +76,20 @@ class Main(QWizard):
         # connect signals
         self.threadpool = QThreadPool()
         self.expanded_items_list_0 = []
-        # self.unchecked_items_set_0 = set()
+        self.unchecked_items_set_0 = set()
         # self.renamed_items_dict_0 = dict()
 
-        self.demo_dir_dict = {1: {'dirname': 'hello', 'cumfiles': 123, 'childkeys': [2]},
-                              2: {'dirname': 'world', 'cumfiles': 45, 'childkeys': [3, 4]},
-                              3: {'dirname': 'one', 'cumfiles': 6, 'childkeys': []},
-                              4: {'dirname': 'two', 'cumfiles': 7, 'childkeys': []}, }
-        self.og_dir_dict_0, self.anon_dir_dict_0 = dict(), dict()
+        self.demo_dir_dict = {
+            1: {'dirname': 'folder 1', 'nfiles': 78, 'cumfiles': 123, 'childkeys': [2]},
+            2: {'dirname': 'folder 2', 'nfiles': 32, 'cumfiles': 45, 'childkeys': [3, 4]},
+            3: {'dirname': 'folder 3', 'nfiles': 6, 'cumfiles': 6, 'childkeys': []},
+            4: {'dirname': 'folder 4', 'nfiles': 1, 'cumfiles': 7, 'childkeys': [5, 6]},
+            5: {'dirname': 'folder 5', 'nfiles': 2, 'cumfiles': 2, 'childkeys': []},
+            6: {'dirname': 'folder 6', 'nfiles': 4, 'cumfiles': 4, 'childkeys': []},
+        }
+        self.og_dir_dict_0 = _pickle.loads(_pickle.dumps(self.demo_dir_dict))
+        self.anon_dir_dict_0 = _pickle.loads(_pickle.dumps(self.demo_dir_dict))
+        # self.og_dir_dict_0, self.anon_dir_dict_0 = dict(), dict()
         self.folder_edit_0 = QLabel()
         self.folder_edit_0.setText(path_str(self.root_path_0))
 
@@ -96,7 +102,7 @@ class Main(QWizard):
         self.ui.og_tree_0.setModel(self.og_model_0)
         self.ui.og_tree_0.setSortingEnabled(True)
         self.og_model_0.setHorizontalHeaderLabels(og_model_headers)
-        self.og_root_item_0 = self.og_model_0.invisibleRootItem()
+        # self.og_root_item_0 = self.og_model_0.invisibleRootItem()
         # self.refresh_treeview(self.og_model_0, self.ui.og_tree_0, self.og_dir_dict_0)
         self.refresh_treeview(self.og_model_0, self.ui.og_tree_0, self.demo_dir_dict)
         self.og_model_0.itemChanged.connect(self.on_item_change_0)
@@ -117,7 +123,8 @@ class Main(QWizard):
         root_item = model.invisibleRootItem()
         # dir_dict key starts at 1 since 0==False
         self.append_all_children(1, dir_dict, root_item, checkable, anon_tree)
-        tree.expandToDepth(0)
+        # tree.expandToDepth(0)
+        tree.expandAll()
         self.header_autoresizable(tree.header())
 
     def append_all_children(self, dirkey, dir_dict, parent_item,
@@ -154,6 +161,7 @@ class Main(QWizard):
 
     def on_item_change_0(self, item):
         if item.column() == 0:
+            # print(self.find_cumfiles(item), self.find_item(item).text())
             dirkey = item.data(Qt.UserRole)
             if (item.rowCount() == 0
                     and item.checkState() == Qt.PartiallyChecked):
@@ -172,11 +180,13 @@ class Main(QWizard):
                     parent_item, child_ix, item_checkstate)
                 self.propagate_checkstate_parent(
                     item, item_checkstate)
-        #     if item_checkstate == Qt.Unchecked:
-        #         self.unchecked_items_set_0.add(dirkey)
-        #     elif item_checkstate in (Qt.Checked, Qt.PartiallyChecked):
-        #         if dirkey in self.unchecked_items_set_0:
-        #             self.unchecked_items_set_0.remove(dirkey)
+                # self.propagate_parent_checkstate_cumfiles(item)
+            if item_checkstate == Qt.Unchecked:
+                self.unchecked_items_set_0.add(dirkey)
+            elif item_checkstate in (Qt.Checked, Qt.PartiallyChecked):
+                if dirkey in self.unchecked_items_set_0:
+                    self.unchecked_items_set_0.remove(dirkey)
+            self.recalculate_cumfiles_0()
         # if item.column() == 1:
         #     dirkey = item.data(Qt.UserRole)
         #     self.renamed_items_dict[dirkey] = item.text()
@@ -231,7 +241,105 @@ class Main(QWizard):
 
 
 
-    def propagate_cumfiles(
+
+
+
+    def recalculate_cumfiles_0(self):
+        replacement_cumfiles_list = []
+        excluded = self.unchecked_items_set_0
+        self.anon_dir_dict_0 = _pickle.loads(_pickle.dumps(self.og_dir_dict_0))
+        for dirkey in sorted(self.anon_dir_dict_0.keys(), reverse=True):
+            childkeys = self.anon_dir_dict_0[dirkey]['childkeys']
+            self.anon_dir_dict_0[dirkey]['childkeys'] = set(childkeys).difference(excluded)
+            self.anon_dir_dict_0[dirkey]['cumfiles'] = self.anon_dir_dict_0[dirkey]['nfiles']
+            for childkey in self.anon_dir_dict_0[dirkey]['childkeys']:
+                self.anon_dir_dict_0[dirkey]['cumfiles'] += self.anon_dir_dict_0[childkey]['cumfiles']
+            replacement_cumfiles_list.append(str(self.anon_dir_dict_0[dirkey]['cumfiles']))
+        replacement_cumfiles_list = replacement_cumfiles_list[::-1]
+        print(replacement_cumfiles_list, excluded)
+        counter = 0
+        for child_ix in range(self.og_model_0.invisibleRootItem().rowCount()):
+            self.og_model_0.invisibleRootItem().child(child_ix, 2).setText(replacement_cumfiles_list[counter])
+            counter += 1
+
+
+    def find_cumfiles(self, item, cumfiles_col=2):
+        parent_item = item.parent()
+        item_row = item.row()
+        if parent_item is not None:
+            return int(parent_item.child(item_row, cumfiles_col).text())
+        elif parent_item is None:  # top-level item with invisible root
+            return int(item.model().item(item_row, cumfiles_col).text())
+
+    def find_item(self, item, item_col=0):
+        parent_item = item.parent()
+        item_row = item.row()
+        if parent_item is not None:
+            return parent_item.child(item_row, item_col)
+        elif parent_item is None:  # top-level item with invisible root
+            return item.model().item(item_row, item_col)
+
+    def siblings_same_checkstate(self, item):
+        item_checkstate = item.checkState()
+        same_checkstate = True
+        parent_item = item.parent()
+        if parent_item is not None:
+            nchild = parent_item.rowCount()
+            for child_ix in range(nchild):
+                if item_checkstate != parent_item.child(child_ix).checkState():
+                    same_checkstate = False
+                    break
+        return same_checkstate
+
+    def propagate_parent_checkstate_cumfiles(self, item):
+        # Based on checkstate cycling order:
+        # (1) Unchecked to PartiallyChecked to Checked
+        # (2) Unchecked to Checked
+        item_checkstate = item.checkState()
+        item_cumfiles = self.find_cumfiles(item)
+        if item.parent() is not None:
+            parent_item = self.find_item(item.parent())
+            parent_cumfiles = self.find_cumfiles(parent_item)
+            parent_cumfiles_text = self.find_item(item.parent(), item_col=2)
+            if item_checkstate == Qt.Unchecked:
+                # following applies to parent_checkstate == Qt.PartiallyChecked or Qt.Checked
+                # because item_checkstate changing to Qt.Unchecked is impossible
+                # if parent_checkstate == Qt.Unchecked in the first place
+                parent_cumfiles_text.setText(str(parent_cumfiles - item_cumfiles))
+                # same_checkstate = self.siblings_same_checkstate(item)
+                # if same_checkstate:
+                #     parent_item.setCheckState(Qt.PartiallyChecked)
+                #     # deselecting all children != deselecting parent
+            elif item_checkstate == Qt.PartiallyChecked:
+                # following applies to  parent_checkstate == Qt.Unchecked or Qt.PartiallyChecked
+                # because item_checkstate changing to Qt.PartiallyChecked is impossible
+                # if parent_checkstate == Qt.Checked in the first place
+                parent_cumfiles_text.setText(str(parent_cumfiles + item_cumfiles))
+                # parent_item.setCheckState(Qt.PartiallyChecked)
+            elif item_checkstate == Qt.Checked:
+                # following applies to parent_checkstate == Qt.Unchecked or Qt.PartiallyChecked
+                # because item_checkstate changing to Qt.Checked is impossible
+                # if parent_checkstate == Qt.Checked in the first place
+                parent_cumfiles_text.setText(str(parent_cumfiles + item_cumfiles))
+                # same_checkstate = self.siblings_same_checkstate(item)
+                # if same_checkstate:
+                #     parent_item.setCheckState(Qt.Checked)
+                #     # this does not cover the case where someone selects all
+                #     # subfolders but exclude the files from parent directory but
+                #     # there is no elegant solution to that edge case
+
+    def get_parents(self, item, parents_set):
+        """ Identify parents, grandparents etc to propagate cumulative file
+        count changes to. """
+        print(item.text())
+        parent_item = item.parent()
+        if parent_item is not None:
+            parent_dirkey = parent_item.data(Qt.UserRole)
+            parents_set.update({parent_dirkey})
+            print(parent_dirkey, parents_set)
+            self.get_parents(parent_item, parents_set)
+
+    def propagate_cumfiles_old(
             self, item, initiator_checkstate=None, initiator_diff=None):
         """
         *****************Untested!!!********************
@@ -335,7 +443,7 @@ class Main(QWizard):
     def build_tree_started_0(self):
         """ Status messages when building a tree should be placed here. """
         self.expanded_items_list_0 = []
-        # self.unchecked_items_set_0 = set()
+        self.unchecked_items_set_0 = set()
         # self.renamed_items_dict_0 = dict()
         self.spinner.start()
         print('build tree started')
@@ -377,7 +485,7 @@ class Main(QWizard):
     def clear_root(self):
         self.root_path_0 = None
         self.og_dir_dict_0 = dict()
-        # self.unchecked_items_set_0 = set()
+        self.unchecked_items_set_0 = set()
         # self.renamed_items_dict_0 = dict()
         self.folder_edit_0.setText(path_str(self.root_path_0))
         self.og_model_0.removeRow(0)
