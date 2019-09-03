@@ -9,7 +9,7 @@ import _pickle
 import traceback
 from pathlib import Path
 from PyQt5.QtCore import (
-    Qt, pyqtSlot, pyqtSignal, QObject, QRunnable, QThreadPool)
+    Qt, pyqtSlot, pyqtSignal, QObject, QRunnable, QThreadPool, QDateTime)
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont, QIcon
 from PyQt5.QtWidgets import (
     QWizard, QWidget, QPushButton, QApplication, QFileDialog, QGridLayout,
@@ -80,12 +80,18 @@ class Main(QWizard):
         # self.renamed_items_dict_0 = dict()
 
         self.demo_dir_dict = {
-            1: {'dirname': 'folder 1', 'nfiles': 78, 'cumfiles': 123, 'childkeys': [2]},
-            2: {'dirname': 'folder 2', 'nfiles': 32, 'cumfiles': 45, 'childkeys': [3, 4]},
-            3: {'dirname': 'folder 3', 'nfiles': 6, 'cumfiles': 6, 'childkeys': []},
-            4: {'dirname': 'folder 4', 'nfiles': 1, 'cumfiles': 7, 'childkeys': [5, 6]},
-            5: {'dirname': 'folder 5', 'nfiles': 2, 'cumfiles': 2, 'childkeys': []},
-            6: {'dirname': 'folder 6', 'nfiles': 4, 'cumfiles': 4, 'childkeys': []},
+            1: {'dirname': 'folder 1', 'nfiles': 78, 'cumfiles': 123,
+                'childkeys': [2], 'mtime': 1330884000.0},
+            2: {'dirname': 'folder 2', 'nfiles': 32, 'cumfiles': 45,
+                'childkeys': [3, 4], 'mtime': 1330873200.0},
+            3: {'dirname': 'folder 3', 'nfiles': 6, 'cumfiles': 6,
+                'childkeys': [], 'mtime': 1330869600.0},
+            4: {'dirname': 'folder 4', 'nfiles': 1, 'cumfiles': 7,
+                'childkeys': [5, 6], 'mtime': 1330866000.0},
+            5: {'dirname': 'folder 5', 'nfiles': 2, 'cumfiles': 2,
+                'childkeys': [], 'mtime': 1330862400.0},
+            6: {'dirname': 'folder 6', 'nfiles': 4, 'cumfiles': 4,
+                'childkeys': [], 'mtime': 1330855200.0},
         }
         self.og_dir_dict_0 = _pickle.loads(_pickle.dumps(self.demo_dir_dict))
         self.anon_dir_dict_0 = _pickle.loads(_pickle.dumps(self.demo_dir_dict))
@@ -96,7 +102,8 @@ class Main(QWizard):
         self.ui.select_btn_0.clicked.connect(self.show_file_dialog_0)
         self.ui.save_btn_0.clicked.connect(self.save_collected_data_0)
 
-        og_model_headers = ['Folder Name', 'Exclude', 'Accessible Files']
+        og_model_headers = ['Folder Name', 'Exclude', 'Accessible Files',
+                            'Date Modified']
         # Initialize model and tree for root 0
         self.og_model_0 = QStandardItemModel()
         self.ui.og_tree_0.setModel(self.og_model_0)
@@ -133,13 +140,15 @@ class Main(QWizard):
             dirname = QStandardItem(dir_dict[dirkey]['dirname'])
             cumfiles = QStandardItem(str(dir_dict[dirkey]['cumfiles']))
             exclusion = QStandardItem('')
+            mtime = QStandardItem(QDateTime.fromSecsSinceEpoch(
+                dir_dict[dirkey]['mtime']).toString(Qt.ISODate))
             # dirname_edited = QStandardItem(dir_dict[dirkey]['dirname'])
             # nfiles = QStandardItem(str(dir_dict[dirkey]['nfiles']))
             # if anon_tree:
             #     items = [dirname, cumfiles]
             # else:
             #     items = [dirname, dirname_edited, cumfiles]
-            items = [dirname, exclusion, cumfiles]
+            items = [dirname, exclusion, cumfiles, mtime]
             dirname.setData(dirkey, Qt.UserRole)
             # dirname_edited.setData(dirkey, Qt.UserRole)
             if checkable:
@@ -164,6 +173,9 @@ class Main(QWizard):
                                          checkable, anon_tree)
 
     def on_item_change_0(self, item):
+        # TODO: 2019-09-03
+        # TODO: If all children are disabled, make parent act as if it has no children (no partiallyChecked, only Checked)
+        root = self.og_model_0.invisibleRootItem()
         if item.column() == 0:
             # print(self.find_cumfiles(item), self.find_item(item).text())
             dirkey = item.data(Qt.UserRole)
@@ -200,13 +212,46 @@ class Main(QWizard):
         # self.preview_btn.setEnabled(True)
         # self.save_btn.setDisabled(True)
         if item.column() == 1:
-            self.dir_exclusion(item, self.og_model_0.invisibleRootItem())
+            self.dir_exclusion(item, root)
+            # # TODO: EXCLUSION logic 2019-08-31
+            # parent_item = item.parent()
+            # if parent_item:
+            #     print(parent_item.text())
+            # if parent_item.checkState() == Qt.Checked:
+            #     pass
+            # elif parent_item.checkState() == Qt.PartiallyChecked:
+            #     pass
+            # elif parent_item.checkState() == Qt.Unchecked:
+            #     self.dir_exclusion(item, self.og_model_0.invisibleRootItem())
+            # if item.checkState() == Qt.Unchecked:
+            #     pass
+            # elif item.checkState() == Qt.Checked:
+            #     # if siblings are all checked, make parent checked, if not, keep parent checkstate as is
+            #     if self.all_sibling_checked(item):
+            #         grandparent_item.child(column=item.column())
+
+    def recalculate_cumfiles_0(self):
+        replacement_cumfiles_list = []
+        excluded = self.unchecked_items_set_0
+        self.anon_dir_dict_0 = _pickle.loads(_pickle.dumps(self.og_dir_dict_0))
+        for dirkey in sorted(self.anon_dir_dict_0.keys(), reverse=True):
+            childkeys = self.anon_dir_dict_0[dirkey]['childkeys']
+            self.anon_dir_dict_0[dirkey]['childkeys'] = set(childkeys).difference(excluded)
+            self.anon_dir_dict_0[dirkey]['cumfiles'] = self.anon_dir_dict_0[dirkey]['nfiles']
+            for childkey in self.anon_dir_dict_0[dirkey]['childkeys']:
+                self.anon_dir_dict_0[dirkey]['cumfiles'] += self.anon_dir_dict_0[childkey]['cumfiles']
+            replacement_cumfiles_list.append(str(self.anon_dir_dict_0[dirkey]['cumfiles']))
+        replacement_cumfiles_list = replacement_cumfiles_list[::-1]
+        counter = 0
+        for child_ix in range(self.og_model_0.invisibleRootItem().rowCount()):
+            self.og_model_0.invisibleRootItem().child(child_ix, 2).setText(replacement_cumfiles_list[counter])
+            counter += 1
 
     def propagate_checkstate_child(
             self, parent_item, child_ix, parent_checkstate):
         """ If parent has a full checkmark, make sure all the children's
         checkboxes are ticked as well. """
-        if parent_checkstate != Qt.PartiallyChecked:
+        if parent_checkstate != Qt.PartiallyChecked and parent_item.child(child_ix).isEnabled():
             parent_item.child(child_ix).setCheckState(parent_checkstate)
             parent_item = parent_item.child(child_ix)
             nchild = parent_item.rowCount()
@@ -243,23 +288,6 @@ class Main(QWizard):
                     break
         return all_checked
 
-    def recalculate_cumfiles_0(self):
-        replacement_cumfiles_list = []
-        excluded = self.unchecked_items_set_0
-        self.anon_dir_dict_0 = _pickle.loads(_pickle.dumps(self.og_dir_dict_0))
-        for dirkey in sorted(self.anon_dir_dict_0.keys(), reverse=True):
-            childkeys = self.anon_dir_dict_0[dirkey]['childkeys']
-            self.anon_dir_dict_0[dirkey]['childkeys'] = set(childkeys).difference(excluded)
-            self.anon_dir_dict_0[dirkey]['cumfiles'] = self.anon_dir_dict_0[dirkey]['nfiles']
-            for childkey in self.anon_dir_dict_0[dirkey]['childkeys']:
-                self.anon_dir_dict_0[dirkey]['cumfiles'] += self.anon_dir_dict_0[childkey]['cumfiles']
-            replacement_cumfiles_list.append(str(self.anon_dir_dict_0[dirkey]['cumfiles']))
-        replacement_cumfiles_list = replacement_cumfiles_list[::-1]
-        counter = 0
-        for child_ix in range(self.og_model_0.invisibleRootItem().rowCount()):
-            self.og_model_0.invisibleRootItem().child(child_ix, 2).setText(replacement_cumfiles_list[counter])
-            counter += 1
-
     def dir_exclusion(self, item, root):
         """ if directory is excluded, user cannot check directory until
         'exclusion' is unchecked """
@@ -269,79 +297,110 @@ class Main(QWizard):
             parent = item.parent()
         else:
             parent = root
+        item = parent.child(item_row, 0)
         if exclusion_checkstate == Qt.Unchecked:
-            flags = Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable
+            exclusion_flags = Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable
             dir_checkstate = Qt.Checked
-            self.propagate_exclusion_child(
-                parent, item_row, flags, exclusion_checkstate, dir_checkstate)
-        elif exclusion_checkstate == Qt.PartiallyChecked:
-            item = parent.child(item_row, 0)
-            item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.PartiallyChecked)
-            flags = Qt.ItemIsUserTristate
-            dir_checkstate = Qt.Unchecked
-            exclusion_checkstate = Qt.Checked
+            dir_flags = exclusion_flags
+            item.setFlags(dir_flags)
+            item.setCheckState(dir_checkstate)
             for child_ix in range(item.rowCount()):
-                self.propagate_exclusion_child(
-                    item, child_ix, flags, exclusion_checkstate, dir_checkstate)
+                item.child(child_ix, 1).setFlags(exclusion_flags)
+                item.child(child_ix, 1).setCheckState(exclusion_checkstate)
+
+            # exclusion_cbox_enable = True
+            # self.propagate_exclusion_child(
+            #     parent, item_row, exclusion_flags, dir_flags,
+            #     exclusion_checkstate, dir_checkstate, exclusion_cbox_enable)
+            # item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable)
+            # item.setCheckState(Qt.PartiallyChecked)
+            # dir_flags = Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable
+            # exclusion_flags = Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable
+            # dir_checkstate = Qt.Checked
+            # exclusion_cbox_enable = True
+            # for child_ix in range(item.rowCount()):
+            #     self.propagate_exclusion_child(
+            #         item, child_ix, exclusion_flags, dir_flags,
+            #         exclusion_checkstate, dir_checkstate, exclusion_cbox_enable)
+        elif exclusion_checkstate == Qt.PartiallyChecked:
+            if item.rowCount() == 0:
+                parent.child(item_row, 1).setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Checked)
+                for child_ix in range(item.rowCount()):
+                    item.child(child_ix, 1).setCheckState(Qt.Checked)
+                # item.setCheckState(Qt.PartiallyChecked)
+                # exclusion_checkstate = Qt.Checked
+                # exclusion_flags = Qt.ItemIsUserTristate
+                # dir_checkstate = Qt.Unchecked
+                # dir_flags = Qt.ItemIsUserTristate
+                # exclusion_cbox_enable = False
+                # for child_ix in range(item.rowCount()):
+                #     self.propagate_exclusion_child(
+                #         item, child_ix, exclusion_flags, dir_flags,
+                #         exclusion_checkstate, dir_checkstate, exclusion_cbox_enable)
+
+        # dir_flags = Qt.ItemIsUserTristate
+            # exclusion_flags = Qt.ItemIsUserTristate
+            # dir_checkstate = Qt.Unchecked
+            # exclusion_checkstate = Qt.Checked
+            # exclusion_cbox_enable = False
+            # self.propagate_exclusion_child(
+            #     parent, item_row, exclusion_flags, dir_flags,
+            #     exclusion_checkstate, dir_checkstate, exclusion_cbox_enable)
+            # parent.child(item_row, 0).setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable)
+            # parent.child(item_row, 1).setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable)
+            # parent.child(item_row, 0).setCheckState(Qt.PartiallyChecked)
         elif exclusion_checkstate == Qt.Checked:
-            flags = Qt.ItemIsUserTristate
-            dir_checkstate = Qt.Unchecked
-            self.propagate_exclusion_child(
-                parent, item_row, flags, exclusion_checkstate, dir_checkstate)
+            item.setCheckState(Qt.Unchecked)
+            item.setFlags(Qt.ItemIsUserTristate)
+            for child_ix in range(item.rowCount()):
+                item.child(child_ix, 1).setCheckState(Qt.Checked)
+            #     item = parent.child(child_ix, 1)
+            #     self.dir_exclusion(item, root)
+            # exclusion_flags = Qt.ItemIsUserTristate
+            # dir_flags = Qt.ItemIsUserTristate
+            # dir_checkstate = Qt.Unchecked
+            # exclusion_cbox_enable = False
+            # self.propagate_exclusion_child(
+            #     parent, item_row, exclusion_flags, dir_flags,
+            #     exclusion_checkstate, dir_checkstate, exclusion_cbox_enable)
+            # parent.child(item_row, 0).setCheckState(Qt.Unchecked)
+            # parent.child(item_row, 0).setFlags(Qt.ItemIsUserTristate)
+            # parent.child(item_row, 1).setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable)
 
     def propagate_exclusion_child(
-            self, parent_item, child_ix, flags, exclusion_checkstate,
-            dir_checkstate):
+            self, parent_item, child_ix, exclusion_flags, flags,
+            exclusion_checkstate, dir_checkstate, exclusion_cbox_enable):
         """ If parent directory has been excluded, exclude children too. """
-        parent_item.child(child_ix, 0).setFlags(flags)
-        # print(parent_item.child(child_ix, 0).text(), exclusion_checkstate, dir_checkstate)
-        if exclusion_checkstate is not None:
+        if exclusion_cbox_enable:
+            # Checkboxes must be enabled first before they can be checked
+            parent_item.child(child_ix, 1).setFlags(exclusion_flags)
             parent_item.child(child_ix, 1).setCheckState(exclusion_checkstate)
-        if dir_checkstate is not None:
+            parent_item.child(child_ix, 0).setFlags(flags)
             parent_item.child(child_ix, 0).setCheckState(dir_checkstate)
+        elif not exclusion_cbox_enable:
+            # Change checkbox state before disabling them
+            parent_item.child(child_ix, 1).setCheckState(exclusion_checkstate)
+            parent_item.child(child_ix, 1).setFlags(exclusion_flags)
+            parent_item.child(child_ix, 0).setCheckState(dir_checkstate)
+            parent_item.child(child_ix, 0).setFlags(flags)
+        # print(parent_item.child(child_ix, 0).text(), exclusion_checkstate, dir_checkstate)
         parent_item = parent_item.child(child_ix, 0)
         for child_ix in range(parent_item.rowCount()):
             self.propagate_exclusion_child(
-                parent_item, child_ix, flags, exclusion_checkstate, dir_checkstate)
+                parent_item, child_ix, exclusion_flags, flags,
+                exclusion_checkstate, dir_checkstate, exclusion_cbox_enable)
 
-    def dir_exclusion_old(self, item, root):
-        """ if directory is excluded, user cannot check directory until
-        'exclusion' is unchecked """
-        item_row = item.row()
-        exclusion_checkstate = item.checkState()
-        if item.parent() is not None:
-            parent = item.parent()
-        else:
-            parent = root
-        if exclusion_checkstate == Qt.Unchecked:
-            flags = Qt.ItemIsUserTristate
-            dir_checkstate = Qt.Unchecked
-            self.propagate_exclusion_child_old(
-                parent, item_row, flags, exclusion_checkstate, dir_checkstate)
-        elif exclusion_checkstate == Qt.PartiallyChecked:
-            flags = Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable
-            parent.child(item_row, 0).setFlags(flags)
-        elif exclusion_checkstate == Qt.Checked:
-            flags = Qt.ItemIsEnabled | Qt.ItemIsUserTristate | Qt.ItemIsUserCheckable
-            dir_checkstate = Qt.Checked
-            self.propagate_exclusion_child_old(
-                parent, item_row, flags, exclusion_checkstate, dir_checkstate)
-
-    def propagate_exclusion_child_old(
-            self, parent_item, child_ix, flags, exclusion_checkstate,
-            dir_checkstate):
-        """ If parent directory has been excluded, exclude children too. """
-        parent_item.child(child_ix, 0).setFlags(flags)
-        # print(parent_item.child(child_ix, 0).text(), exclusion_checkstate, dir_checkstate)
-        if exclusion_checkstate is not None:
-            parent_item.child(child_ix, 1).setCheckState(exclusion_checkstate)
-        if dir_checkstate is not None:
-            parent_item.child(child_ix, 0).setCheckState(dir_checkstate)
-        parent_item = parent_item.child(child_ix, 0)
-        for child_ix in range(parent_item.rowCount()):
-            self.propagate_exclusion_child(
-                parent_item, child_ix, flags, dir_checkstate, exclusion_checkstate)
+    # def propagate_exclusion_parent(self, parent_item, exclusion_checkstate):
+    #     if exclusion_checkstate == Qt.PartiallyChecked:
+    #         # if siblings are all checked, make parent checked, if not, keep parent checkstate as is
+    #         if self.all_sibling_checked(item):
+    #             parent_item = QStandardItem()
+    #             parent_item.col
+    #             parent_item.child(column=)
+    #     elif exclusion_checkstate == Qt.Unchecked:
+    #         if parent_item.checkState() ==
 
     def build_tree_structure_threaded_0(self, root_path):
         worker = Worker(record_stat, root_path)
