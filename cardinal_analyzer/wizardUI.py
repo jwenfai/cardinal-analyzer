@@ -68,26 +68,26 @@ class WizardUI(object):
         # page 2 contents
         self.wizardpage2 = QtWidgets.QWizardPage()
         self.wizardpage2.setObjectName("wizardpage2")
-        # self.gridlayout_wp2_0 = QtWidgets.QGridLayout(self.wizardpage2)
-        # self.gridlayout_wp2_0.setObjectName("gridlayout_wp2")
         self.verticallayout_wp2_0 = QtWidgets.QVBoxLayout(self.wizardpage2)
         self.verticallayout_wp2_0.setObjectName("verticallayout_wp2_0")
         self.horizontallayout_wp2_0 = QtWidgets.QHBoxLayout()
         self.horizontallayout_wp2_0.setObjectName("horizontallayout_wp2_0")
 
         self.og_tree_0 = QtWidgets.QTreeView()
-
-        self.select_btn_0 = QtWidgets.QPushButton()
-        self.select_btn_0.resize(self.select_btn_0.sizeHint())
-        self.save_btn_0 = QtWidgets.QPushButton()
-        self.save_btn_0.resize(self.save_btn_0.sizeHint())
-        self.save_btn_0.setDisabled(True)
-        # self.gridlayout_wp2_0.addWidget(self.og_tree_0, 0, 0, 6, 6)
-        # self.gridlayout_wp2_0.addWidget(self.select_btn_0, 7, 2, 1, 1)
-        # self.gridlayout_wp2_0.addWidget(self.save_btn_0, 7, 3, 1, 1)
+        # self.select_btn_0 = QtWidgets.QPushButton()
+        # self.select_btn_0.resize(self.select_btn_0.sizeHint())
+        # self.save_btn_0 = QtWidgets.QPushButton()
+        # self.save_btn_0.resize(self.save_btn_0.sizeHint())
+        # self.save_btn_0.setDisabled(True)
+        # self.load_btn_0 = QtWidgets.QPushButton()
+        # self.load_btn_0.resize(self.save_btn_0.sizeHint())
+        self.reset_demo_btn = QtWidgets.QPushButton()
+        self.reset_demo_btn.resize(self.reset_demo_btn.sizeHint())
         self.horizontallayout_wp2_0.addStretch(1)
-        self.horizontallayout_wp2_0.addWidget(self.select_btn_0)
-        self.horizontallayout_wp2_0.addWidget(self.save_btn_0)
+        # self.horizontallayout_wp2_0.addWidget(self.select_btn_0)
+        # self.horizontallayout_wp2_0.addWidget(self.save_btn_0)
+        # self.horizontallayout_wp2_0.addWidget(self.load_btn_0)
+        self.horizontallayout_wp2_0.addWidget(self.reset_demo_btn)
         self.horizontallayout_wp2_0.addStretch(1)
         self.verticallayout_wp2_0.addWidget(self.og_tree_0)
         self.verticallayout_wp2_0.addLayout(self.horizontallayout_wp2_0)
@@ -95,14 +95,43 @@ class WizardUI(object):
         # page 3 contents
         self.wizardpage3 = QtWidgets.QWizardPage()
         self.wizardpage3.setObjectName("wizardpage3")
-        self.gridlayout_wp3_0 = QtWidgets.QGridLayout(self.wizardpage3)
-        self.gridlayout_wp3_0.setObjectName("gridlayout_wp3")
+        self.verticallayout_wp3_0 = QtWidgets.QVBoxLayout(self.wizardpage3)
+        self.verticallayout_wp3_0.setObjectName("verticallayout_wp3_0")
+        self.horizontallayout_wp3_0 = QtWidgets.QHBoxLayout()
+        self.horizontallayout_wp3_0.setObjectName("horizontallayout_wp3_0")
+
+        self.textarea_wp3_0 = QtWidgets.QPlainTextEdit()
+        self.software_savebutton = QtWidgets.QPushButton()
+        self.software_savebutton.resize(self.software_savebutton.sizeHint())
+        self.horizontallayout_wp3_0.addStretch(1)
+        self.horizontallayout_wp3_0.addWidget(self.software_savebutton)
+        self.horizontallayout_wp3_0.addStretch(1)
+        self.verticallayout_wp3_0.addWidget(self.textarea_wp3_0)
+        self.verticallayout_wp3_0.addLayout(self.horizontallayout_wp3_0)
 
         # page 4 contents
         self.wizardpage4 = QtWidgets.QWizardPage()
         self.wizardpage4.setObjectName("wizardpage4")
-        self.gridlayout_wp4_0 = QtWidgets.QGridLayout(self.wizardpage4)
-        self.gridlayout_wp4_0.setObjectName("gridlayout_wp4")
+        self.verticallayout_wp4_0 = QtWidgets.QVBoxLayout(self.wizardpage4)
+        self.verticallayout_wp4_0.setObjectName("verticallayout_wp4_0")
+        self.horizontallayout_wp4_0 = QtWidgets.QHBoxLayout()
+        self.horizontallayout_wp4_0.setObjectName("horizontallayout_wp4_0")
+
+        self.og_tree_1 = QtWidgets.QTreeView()
+        self.select_btn_1 = QtWidgets.QPushButton()
+        self.select_btn_1.resize(self.select_btn_1.sizeHint())
+        self.save_btn_1 = QtWidgets.QPushButton()
+        self.save_btn_1.resize(self.save_btn_1.sizeHint())
+        self.save_btn_1.setDisabled(True)
+        self.load_btn_1 = QtWidgets.QPushButton()
+        self.load_btn_1.resize(self.save_btn_1.sizeHint())
+        self.horizontallayout_wp4_0.addStretch(1)
+        self.horizontallayout_wp4_0.addWidget(self.select_btn_1)
+        self.horizontallayout_wp4_0.addWidget(self.save_btn_1)
+        self.horizontallayout_wp4_0.addWidget(self.load_btn_1)
+        self.horizontallayout_wp4_0.addStretch(1)
+        self.verticallayout_wp4_0.addWidget(self.og_tree_1)
+        self.verticallayout_wp4_0.addLayout(self.horizontallayout_wp4_0)
 
         # page 5 contents
         self.wizardpage5 = QtWidgets.QWizardPage()
@@ -166,24 +195,43 @@ class WizardUI(object):
             "i'll provide text later) above a tree widget like in (3.) but "
             "populated with just a few fake folders (e.g., named Folder 1-4) "
             "so users can try out and learn the functionality"))
-        self.select_btn_0.setText(_translate("Wizard", "Select Root"))
-        self.select_btn_0.setToolTip(_translate("Wizard",
-            "Select <b>personal folder</b> for data collection."))
-        self.save_btn_0.setText(_translate("Wizard", "Save Data"))
-        self.save_btn_0.setToolTip(_translate("Wizard",
-            "Save data locally."))
+        # self.select_btn_0.setText(_translate("Wizard", "Select Root"))
+        # self.select_btn_0.setToolTip(_translate(
+        #     "Wizard", "Select <b>personal folder</b> for data collection."))
+        # self.save_btn_0.setText(_translate("Wizard", "Save Data"))
+        # self.save_btn_0.setToolTip(_translate(
+        #     "Wizard", "Save data locally as a JSON file."))
+        # self.load_btn_0.setText(_translate("Wizard", "Load Data"))
+        # self.load_btn_0.setToolTip(_translate(
+        #     "Wizard", "Load folder structure from local JSON file."))
+        self.reset_demo_btn.setText(_translate("Wizard", "Reset Demo"))
+        self.reset_demo_btn.setToolTip(_translate(
+            "Wizard", "Return example folder structure to initial state."))
 
         # page 3 labels
         self.wizardpage3.setTitle(_translate("Wizard", "Software"))
         self.wizardpage3.setSubTitle(_translate(
             "Wizard",
             "Names of any special software you use to access your files"))
+        self.software_savebutton.setText(_translate("Wizard", "Save Info"))
+        self.software_savebutton.setToolTip(_translate(
+            "Wizard", "Save names of special software used to access files."))
+
         # page 4 labels
         self.wizardpage4.setTitle(_translate("Wizard", "Analysis"))
         self.wizardpage4.setSubTitle(_translate(
             "Wizard",
             "(A) a small text label with some brief instructions I will "
             "provide later"))
+        self.select_btn_1.setText(_translate("Wizard", "Select Root"))
+        self.select_btn_1.setToolTip(_translate(
+            "Wizard", "Select <b>personal folder</b> for data collection."))
+        self.save_btn_1.setText(_translate("Wizard", "Save Data"))
+        self.save_btn_1.setToolTip(_translate(
+            "Wizard", "Save data locally as a JSON file."))
+        self.load_btn_1.setText(_translate("Wizard", "Load Data"))
+        self.load_btn_1.setToolTip(_translate(
+            "Wizard", "Load folder structure from a JSON file."))
         # page 5 labels
         self.wizardpage5.setTitle(_translate("Wizard", "Finished!"))
         self.wizardpage5.setSubTitle(_translate(

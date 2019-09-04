@@ -69,7 +69,7 @@ def record_stat(root):
         dir_dict[dirorder] = {
             'dirname': os.path.split(dirpath)[1],
             'dirparent': dirparent,
-            'childkeys': [os.path.join(dirpath, dir_) for dir_ in dirnames],
+            'childkeys': {os.path.join(dirpath, dir_) for dir_ in dirnames},
             'depth': 0,
             'nfiles': len(filenames),
             'cumfiles': len(filenames),
@@ -94,8 +94,8 @@ def record_stat(root):
         if dirkey > 1:
             dir_dict[dirkey]['dirparent'] = order_dict[
                 dir_dict[dirkey]['dirparent']]
-        dir_dict[dirkey]['childkeys'] = [
-            order_dict[child] for child in dir_dict[dirkey]['childkeys']]
+        dir_dict[dirkey]['childkeys'] = {
+            order_dict[child] for child in dir_dict[dirkey]['childkeys']}
 
     # Remove hidden dirs and their children
     hidden_dirs = [order_dict[dirpath] for dirpath in hidden_dirs]
@@ -139,8 +139,17 @@ def assign_folder_depth(dirkey, dir_dict):
         assign_folder_depth(child, dir_dict)
 
 
+def compute_cumfiles(dir_dict):
+    """ Calculate cumulative accessible files only """
+    for dirkey in sorted(dir_dict.keys(), reverse=True):
+        children = dir_dict[dirkey]['childkeys']
+        dir_dict[dirkey]['cumfiles'] += sum(
+            [dir_dict[child]['cumfiles'] for child in children])
+
+
 def compute_stat(dir_dict):
-    """ Count cumulative accessible files """
+    """ Calculate cumulative accessible files and aggregate statistics for
+    temporal values """
     for dirkey in sorted(dir_dict.keys(), reverse=True):
         children = dir_dict[dirkey]['childkeys']
         dir_dict[dirkey]['cumfiles'] += sum(
@@ -186,13 +195,52 @@ def anonymize_stat(dir_dict, removed_dirs, renamed_dirs=None):
     if renamed_dirs is not None:
         for dirkey in renamed_dirs.keys():
             dir_dict[dirkey]['dirname'] = renamed_dirs[dirkey]
-    for dirkey in list(removed_dirs):
+    for dirkey in removed_dirs:
         parent = dir_dict[dirkey]['dirparent']
         if parent in dir_dict.keys():
-            og_childset = set(dir_dict[parent]['childkeys'])
+            og_childset = dir_dict[parent]['childkeys']
             rm_childset = set([dirkey])
-            dir_dict[parent]['childkeys'] = list(
-                og_childset.difference(rm_childset))
+            dir_dict[parent]['childkeys'] = og_childset.difference(rm_childset)
+        dir_dict.pop(dirkey)
+    # rearrange keys to hide gaps from exclusion/deselection of folders
+    old_new_keymap = dict(zip(sorted(dir_dict.keys()), range(1, 1+len(dir_dict.keys()))))
+    for oldkey in list(dir_dict.keys()):
+        # since original dict uses int keys, making new keys str prevents collisions
+        newkey = str(old_new_keymap[oldkey])
+        dir_dict[newkey] = dir_dict[oldkey]
+        dir_dict[newkey]['childkeys'] = {
+            old_new_keymap[dirkey] for dirkey in dir_dict[newkey]['childkeys']}
+        dir_dict[newkey]['cumfiles'] = dir_dict[newkey]['nfiles']
+        dir_dict.pop(oldkey)
+    for dirkey in list(dir_dict.keys()):  # get static key list before popping items
+        # converting str keys back to int
+        dir_dict[int(dirkey)] = dir_dict[dirkey]
+        dir_dict.pop(dirkey)
+    compute_cumfiles(dir_dict)
+    return dir_dict
+
+
+def json_serializable(dir_dict):
+    """ Convert data types within dictionary so that it can be saved as a
+    JSON file. """
+    set_var_list = ['childkeys']
+    for set_var in set_var_list:
+        for dirkey in dir_dict.keys():
+            dir_dict[dirkey][set_var] = list(dir_dict[dirkey][set_var])
+    return dir_dict
+
+
+def dict_readable(dir_dict):
+    """ Convert data types in loaded JSON file so that the dict is compatible
+    with functions written with those data types in mind. """
+    set_var_list = ['childkeys']
+    for set_var in set_var_list:
+        for dirkey in dir_dict.keys():
+            dir_dict[dirkey][set_var] = set(dir_dict[dirkey][set_var])
+    for dirkey in list(dir_dict.keys()):  # get static key list before popping items
+        # JSON decoder/parser incorrectly assumes dict keys are strings,
+        # converting keys to int here
+        dir_dict[int(dirkey)] = dir_dict[dirkey]
         dir_dict.pop(dirkey)
     return dir_dict
 
