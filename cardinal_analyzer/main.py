@@ -173,28 +173,23 @@ class Main(QWizard):
                                          checkable, anon_tree)
 
     def on_item_change_0(self, item):
-        # TODO: 2019-09-03
-        # TODO: If all children are disabled, make parent act as if it has no children (no partiallyChecked, only Checked)
         root = self.og_model_0.invisibleRootItem()
         if item.column() == 0:
             dirkey = item.data(Qt.UserRole)
-            if (item.rowCount() == 0
-                    and item.checkState() == Qt.PartiallyChecked):
-                item.setCheckState(Qt.Checked)
             item_checkstate = item.checkState()
-            parent_item = item.parent()
-            if parent_item is None:
-                nchild = item.rowCount()
-                if nchild > 0:
-                    for child_ix in range(nchild):
-                        self.propagate_checkstate_child(
-                            item, child_ix, item_checkstate)
-            if parent_item is not None:
-                child_ix = item.row()
-                self.propagate_checkstate_child(
-                    parent_item, child_ix, item_checkstate)
-                self.propagate_checkstate_parent(
-                    item, item_checkstate)
+            item_row = item.row()
+            if item.parent() is None:
+                parent = root
+            else:
+                parent = item.parent()
+            if item.checkState() == Qt.PartiallyChecked:
+                if (item.rowCount() == 0
+                        or parent.child(item_row, 1).checkState() == Qt.PartiallyChecked):
+                    item.setCheckState(Qt.Checked)
+            self.propagate_checkstate_child(
+                parent, item_row, item_checkstate)
+            self.propagate_checkstate_parent(
+                item)
             if item_checkstate == Qt.Unchecked:
                 self.unchecked_items_set_0.add(dirkey)
             elif item_checkstate in (Qt.Checked, Qt.PartiallyChecked):
@@ -234,21 +229,23 @@ class Main(QWizard):
                     self.propagate_checkstate_child(
                         parent_item, child_ix, parent_checkstate)
 
-    def propagate_checkstate_parent(self, item, item_checkstate):
+    def propagate_checkstate_parent(self, item):
         """ If some children are unchecked, make parent partially checked.
         If all children are checked, give parent a full checkmark. """
+        item_checkstate = item.checkState()
         parent_item = item.parent()
         if parent_item is not None:
-            if self.all_sibling_checked(item):
+            if self.all_siblings_checked(item):
                 parent_item.setCheckState(Qt.Checked)
             if (item_checkstate in (Qt.Checked, Qt.PartiallyChecked)
                     and parent_item.checkState() == Qt.Unchecked):
                 parent_item.setCheckState(Qt.PartiallyChecked)
             if (item_checkstate in (Qt.Unchecked, Qt.PartiallyChecked)
-                    and parent_item.checkState() == Qt.Checked):
+                    and parent_item.checkState() == Qt.Checked
+                    and parent_item.child(item.row(), 1).checkState() == Qt.Unchecked):
                 parent_item.setCheckState(Qt.PartiallyChecked)
 
-    def all_sibling_checked(self, item):
+    def all_siblings_checked(self, item):
         """ Determine if siblings (items sharing the same parent and are on
         the same tree level) are all checked. """
         all_checked = True
@@ -256,10 +253,11 @@ class Main(QWizard):
             parent_item = item.parent()
             nchild = parent_item.rowCount()
             for child_ix in range(nchild):
-                if parent_item.child(child_ix).checkState() in (
-                        Qt.Unchecked, Qt.PartiallyChecked):
-                    all_checked = False
-                    break
+                if parent_item.child(child_ix, 1).checkState() == Qt.Unchecked:
+                    if parent_item.child(child_ix).checkState() in (
+                            Qt.Unchecked, Qt.PartiallyChecked):
+                        all_checked = False
+                        break
         return all_checked
 
     def dir_exclusion(self, item, root):
@@ -279,20 +277,41 @@ class Main(QWizard):
             item.setFlags(dir_flags)
             item.setCheckState(dir_checkstate)
             for child_ix in range(item.rowCount()):
-                item.child(child_ix, 1).setFlags(exclusion_flags)
                 item.child(child_ix, 1).setCheckState(exclusion_checkstate)
+                item.child(child_ix, 1).setFlags(exclusion_flags)
         elif exclusion_checkstate == Qt.PartiallyChecked:
             if item.rowCount() == 0:
                 parent.child(item_row, 1).setCheckState(Qt.Checked)
+            elif self.all_children_excluded(item):
+                for child_ix in range(item.rowCount()):
+                    item.child(child_ix, 1).setFlags(Qt.ItemIsUserTristate)
             else:
                 item.setCheckState(Qt.Checked)
                 for child_ix in range(item.rowCount()):
                     item.child(child_ix, 1).setCheckState(Qt.Checked)
+                    item.child(child_ix, 1).setFlags(Qt.ItemIsUserTristate)
         elif exclusion_checkstate == Qt.Checked:
+            if self.all_children_excluded(parent):
+                # make parent partially checked if all children are checked
+                if parent != root:
+                    grandparent = parent.parent()
+                    if grandparent is None:
+                        grandparent = root
+                    if parent.isEnabled():
+                        grandparent.child(parent.row(), 1).setCheckState(Qt.PartiallyChecked)
             item.setCheckState(Qt.Unchecked)
             item.setFlags(Qt.ItemIsUserTristate)
             for child_ix in range(item.rowCount()):
                 item.child(child_ix, 1).setCheckState(Qt.Checked)
+                item.child(child_ix, 1).setFlags(Qt.ItemIsUserTristate)
+
+    def all_children_excluded(self, parent):
+        all_excluded = True
+        for child_ix in range(parent.rowCount()):
+            if parent.child(child_ix, 1).checkState() != Qt.Checked and parent.child(child_ix, 1).isEnabled():
+                all_excluded = False
+                break
+        return all_excluded
 
     def build_tree_structure_threaded_0(self, root_path):
         worker = Worker(record_stat, root_path)
