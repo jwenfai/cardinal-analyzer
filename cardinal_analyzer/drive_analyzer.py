@@ -53,7 +53,7 @@ def record_stat(root):
                     f_stat = os.stat(f_path)
                     filestat_list.append({
                         'mode': f_stat.st_mode,
-                        'ino': f_stat.st_ino,
+                        'ino': f_stat.st_ino,  # unique ID for a node/folder/file
                         'dev': f_stat.st_dev,
                         'nlink': f_stat.st_nlink,
                         'uid': f_stat.st_uid,
@@ -75,7 +75,7 @@ def record_stat(root):
             'cumfiles': len(filenames),
             'filestat': filestat_list,
             'mode': dir_stat.st_mode,
-            'ino': dir_stat.st_ino,
+            'ino': dir_stat.st_ino,  # unique ID for a node/folder/file
             'dev': dir_stat.st_dev,
             'nlink': dir_stat.st_nlink,
             'uid': dir_stat.st_uid,

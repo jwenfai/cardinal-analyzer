@@ -3,23 +3,18 @@ waitingspinnerwidget from https://github.com/z3ntu/QtWaitingSpinner
 code in main.py, wizardUI.py etc. adapted from https://github.com/jddinneen/cardinal
 """
 
-import os
 import json
 import _pickle
 import traceback
 from pathlib import Path
 from PyQt5.QtCore import (
     Qt, pyqtSlot, pyqtSignal, QObject, QRunnable, QThreadPool, QDateTime)
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QFont, QIcon, QTextDocument
-from PyQt5.QtWidgets import (
-    QWizard, QWidget, QPushButton, QApplication, QFileDialog, QGridLayout,
-    QLabel,  QTreeView, QHeaderView, QTableWidget, QTableWidgetItem,
-    QTabWidget, QMessageBox, QSplitter, QVBoxLayout)
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QTextDocument
+from PyQt5.QtWidgets import QWizard, QApplication, QFileDialog, QHeaderView
 from waitingspinnerwidget import QtWaitingSpinner
 from wizardUI import WizardUI
 from drive_analyzer import (
-    record_stat, compute_stat, anonymize_stat, json_serializable,
-    dict_readable, drive_measurement, check_collection_properties)
+    record_stat, compute_stat, json_serializable, dict_readable)
 
 
 def path_str(root_path):
@@ -105,10 +100,6 @@ class Main(QWizard):
             self.ui.og_tree_1, self.threadpool, self.spinner,
             self.ui.select_btn_1, self.ui.save_btn_1, self.ui.load_btn_1)
 
-        # tree0.select_btn.clicked.connect(lambda: self.select_tree_root(tree0))
-        # tree0.save_btn.clicked.connect(lambda: self.save_collected_data(tree0))
-        # tree0.load_btn.clicked.connect(lambda: self.load_collected_data(tree0))
-        # tree0.save_btn.setEnabled(True)
         tree0.load_dir_dicts(self.demo_dir_dict)
         self.ui.reset_demo_btn.clicked.connect(
             lambda: tree0.refresh_treeview(tree0.og_model, tree0.og_tree, self.demo_dir_dict))
@@ -116,7 +107,6 @@ class Main(QWizard):
         tree1.save_btn.clicked.connect(lambda: self.save_collected_data(tree1))
         tree1.load_btn.clicked.connect(lambda: self.load_collected_data(tree1))
         self.ui.consent_savebutton.clicked.connect(self.save_consent)
-        # self.ui.software_savebutton.clicked.connect(self.save_software_choice)
         self.ui.wizardpage1.registerField("consentbox*", self.ui.consentbox)
 
     def select_tree_root(self, tree):
@@ -124,7 +114,6 @@ class Main(QWizard):
             self, 'Select Folder', path_str(tree.root_path))
         if dirpath:
             tree.root_path = Path(dirpath)
-            # tree.folder_edit.setText(path_str(tree.root_path))
             tree.build_tree_structure_threaded(tree.root_path)
             tree.save_btn.setEnabled(True)
         else:
@@ -145,14 +134,6 @@ class Main(QWizard):
                 consent_plaintext = doc.toPlainText()
                 file.write(consent_plaintext)
 
-    # def save_software_choice(self):
-    #     formats = "Text (*.txt)"
-    #     filename, extension = QFileDialog.getSaveFileName(
-    #         self, 'Save File', path_str(Path('~').expanduser() / 'my_software.txt'), formats)
-    #     if filename != '':
-    #         with open(filename, 'w', encoding='utf8') as file:
-    #             file.write(self.ui.textarea_wp3_0.toPlainText())
-
     def make_super_dict(self, dict_list, name_list):
         super_dict = dict()
         if len(dict_list) == len(name_list):
@@ -168,7 +149,6 @@ class Main(QWizard):
             self, 'Save File', path_str(Path('~').expanduser() / 'my_folder_data.json'), formats)
         if filename != '':
             anon_dir_dict = _pickle.loads(_pickle.dumps(tree.og_dir_dict))
-            # anonymize_stat(anon_dir_dict, tree.unchecked_items_set)
             tree.save_checkstates_root(anon_dir_dict)
             json_serializable(anon_dir_dict)
             super_dict = self.make_super_dict(
@@ -183,7 +163,6 @@ class Main(QWizard):
             self, 'Load File', path_str(Path('~').expanduser()), formats)
         if filename != '':
             with open(filename, 'r', encoding='utf8') as file:
-                # tree.og_dir_dict = json.load(file)
                 super_dict = json.load(file)
                 self.ui.textarea_wp3_0.setPlainText(super_dict['software_choice'])
                 tree.og_dir_dict = super_dict['dir_dict']
@@ -206,19 +185,13 @@ class TreeOperations:
         self.expanded_items_list = []
         self.threadpool = threadpool
         self.spinner = spinner
-        # self.root_path = Path('~/Dropbox/academic').expanduser()
         self.root_path = Path('~').expanduser()
         self.select_btn = select_btn
         self.save_btn = save_btn
         self.load_btn = load_btn
-        # self.folder_edit = folder_edit
 
         # Initialize model and tree
         self.og_tree = og_tree
-        # if demo_dir_dict is not None:
-        #     self.og_dir_dict = _pickle.loads(_pickle.dumps(demo_dir_dict))
-        #     self.anon_dir_dict = _pickle.loads(_pickle.dumps(demo_dir_dict))
-        # else:
         self.og_dir_dict, self.anon_dir_dict = dict(), dict()
         self.og_model = QStandardItemModel()
         self.og_tree.setModel(self.og_model)
@@ -237,7 +210,6 @@ class TreeOperations:
         else:
             first_dirkey = 1
         self.append_all_children(first_dirkey, dir_dict, root_item, checkable, anon_tree)
-        # tree.expandToDepth(0)
         tree.expandAll()
         self.header_autoresizable(tree.header())
 
@@ -249,15 +221,8 @@ class TreeOperations:
             exclusion = QStandardItem('')
             mtime = QStandardItem(QDateTime.fromSecsSinceEpoch(
                 dir_dict[dirkey]['mtime']).toString(Qt.ISODate))
-            # dirname_edited = QStandardItem(dir_dict[dirkey]['dirname'])
-            # nfiles = QStandardItem(str(dir_dict[dirkey]['nfiles']))
-            # if anon_tree:
-            #     items = [dirname, cumfiles]
-            # else:
-            #     items = [dirname, dirname_edited, cumfiles]
             items = [dirname, exclusion, cumfiles, mtime]
             dirname.setData(dirkey, Qt.UserRole)
-            # dirname_edited.setData(dirkey, Qt.UserRole)
             if checkable:
                 dirname.setFlags(
                     Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
@@ -266,11 +231,8 @@ class TreeOperations:
                 exclusion.setFlags(
                     Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
                     Qt.ItemIsUserCheckable)
-                # exclusion.setCheckState(Qt.Checked)
                 exclusion.setCheckState(Qt.Unchecked)
                 cumfiles.setFlags(Qt.ItemIsEnabled)
-                # dirname_edited.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
-                # nfiles.setFlags(Qt.ItemIsEnabled)
             parent_item.appendRow(items)
             child_ix = parent_item.rowCount() - 1
             parent_item = parent_item.child(child_ix)
@@ -431,7 +393,6 @@ class TreeOperations:
         """ Status messages when building a tree should be placed here. """
         self.expanded_items_list = []
         self.unchecked_items_set = set()
-        # self.renamed_items_dict_0 = dict()
         self.spinner.start()
 
     def build_tree_finished(self, result):
@@ -447,8 +408,6 @@ class TreeOperations:
         self.root_path = None
         self.og_dir_dict = dict()
         self.unchecked_items_set = set()
-        # self.renamed_items_dict = dict()
-        # self.folder_edit.setText(path_str(self.root_path))
         self.og_model.removeRow(0)
 
     def load_dir_dicts(self, og_dir_dict, anon_dir_dict=None):
@@ -507,7 +466,6 @@ class TreeOperations:
 # the whole app
 if __name__ == '__main__':
     import sys
-    # app = QApplication(sys.argv)
     app = QApplication([])
     main = Main()
     main.show()
