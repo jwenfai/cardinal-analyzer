@@ -101,11 +101,11 @@ class WizardUI(object):
         self.horizontallayout_wp3_0.setObjectName("horizontallayout_wp3_0")
 
         self.textarea_wp3_0 = QtWidgets.QPlainTextEdit()
-        self.software_savebutton = QtWidgets.QPushButton()
-        self.software_savebutton.resize(self.software_savebutton.sizeHint())
-        self.horizontallayout_wp3_0.addStretch(1)
-        self.horizontallayout_wp3_0.addWidget(self.software_savebutton)
-        self.horizontallayout_wp3_0.addStretch(1)
+        # self.software_savebutton = QtWidgets.QPushButton()
+        # self.software_savebutton.resize(self.software_savebutton.sizeHint())
+        # self.horizontallayout_wp3_0.addStretch(1)
+        # self.horizontallayout_wp3_0.addWidget(self.software_savebutton)
+        # self.horizontallayout_wp3_0.addStretch(1)
         self.verticallayout_wp3_0.addWidget(self.textarea_wp3_0)
         self.verticallayout_wp3_0.addLayout(self.horizontallayout_wp3_0)
 
@@ -213,9 +213,9 @@ class WizardUI(object):
         self.wizardpage3.setSubTitle(_translate(
             "Wizard",
             "Names of any special software you use to access your files"))
-        self.software_savebutton.setText(_translate("Wizard", "Save Info"))
-        self.software_savebutton.setToolTip(_translate(
-            "Wizard", "Save names of special software used to access files."))
+        # self.software_savebutton.setText(_translate("Wizard", "Save Info"))
+        # self.software_savebutton.setToolTip(_translate(
+        #     "Wizard", "Save names of special software used to access files."))
 
         # page 4 labels
         self.wizardpage4.setTitle(_translate("Wizard", "Analysis"))
@@ -228,10 +228,14 @@ class WizardUI(object):
             "Wizard", "Select <b>personal folder</b> for data collection."))
         self.save_btn_1.setText(_translate("Wizard", "Save Data"))
         self.save_btn_1.setToolTip(_translate(
-            "Wizard", "Save data locally as a JSON file."))
+            "Wizard",
+            "Save folder structure data and software choices locally as a "
+            "JSON file."))
         self.load_btn_1.setText(_translate("Wizard", "Load Data"))
         self.load_btn_1.setToolTip(_translate(
-            "Wizard", "Load folder structure from a JSON file."))
+            "Wizard",
+            "Load folder structure data and software choices from a "
+            "JSON file."))
         # page 5 labels
         self.wizardpage5.setTitle(_translate("Wizard", "Finished!"))
         self.wizardpage5.setSubTitle(_translate(

@@ -84,6 +84,8 @@ def record_stat(root):
             'atime': dir_stat.st_atime,
             'mtime': dir_stat.st_mtime,
             'ctime': dir_stat.st_ctime,
+            'selection_state': None,
+            'exclusion_state': None,
             'aggfilestat': None
         }
         order_dict[dirpath] = dirorder

@@ -116,7 +116,7 @@ class Main(QWizard):
         tree1.save_btn.clicked.connect(lambda: self.save_collected_data(tree1))
         tree1.load_btn.clicked.connect(lambda: self.load_collected_data(tree1))
         self.ui.consent_savebutton.clicked.connect(self.save_consent)
-        self.ui.software_savebutton.clicked.connect(self.save_software_choice)
+        # self.ui.software_savebutton.clicked.connect(self.save_software_choice)
         self.ui.wizardpage1.registerField("consentbox*", self.ui.consentbox)
 
     def select_tree_root(self, tree):
@@ -145,13 +145,22 @@ class Main(QWizard):
                 consent_plaintext = doc.toPlainText()
                 file.write(consent_plaintext)
 
-    def save_software_choice(self):
-        formats = "Text (*.txt)"
-        filename, extension = QFileDialog.getSaveFileName(
-            self, 'Save File', path_str(Path('~').expanduser() / 'my_software.txt'), formats)
-        if filename != '':
-            with open(filename, 'w', encoding='utf8') as file:
-                file.write(self.ui.textarea_wp3_0.toPlainText())
+    # def save_software_choice(self):
+    #     formats = "Text (*.txt)"
+    #     filename, extension = QFileDialog.getSaveFileName(
+    #         self, 'Save File', path_str(Path('~').expanduser() / 'my_software.txt'), formats)
+    #     if filename != '':
+    #         with open(filename, 'w', encoding='utf8') as file:
+    #             file.write(self.ui.textarea_wp3_0.toPlainText())
+
+    def make_super_dict(self, dict_list, name_list):
+        super_dict = dict()
+        if len(dict_list) == len(name_list):
+            for dict_, name in zip(dict_list, name_list):
+                super_dict[name] = dict_
+            return super_dict
+        else:
+            print('Mismatch in number of dicts and supplied names.')
 
     def save_collected_data(self, tree):
         formats = "JavaScript Object Notation (*.json)"
@@ -159,10 +168,14 @@ class Main(QWizard):
             self, 'Save File', path_str(Path('~').expanduser() / 'my_folder_data.json'), formats)
         if filename != '':
             anon_dir_dict = _pickle.loads(_pickle.dumps(tree.og_dir_dict))
-            anonymize_stat(anon_dir_dict, tree.unchecked_items_set)
+            # anonymize_stat(anon_dir_dict, tree.unchecked_items_set)
+            tree.save_checkstates_root(anon_dir_dict)
             json_serializable(anon_dir_dict)
+            super_dict = self.make_super_dict(
+                [anon_dir_dict, self.ui.textarea_wp3_0.toPlainText()],
+                ['dir_dict', 'software_choice'])
             with open(filename, 'w', encoding='utf8') as file:
-                json.dump(anon_dir_dict, file, indent=4)
+                json.dump(super_dict, file, indent=4)
 
     def load_collected_data(self, tree):
         formats = "JavaScript Object Notation (*.json)"
@@ -170,10 +183,14 @@ class Main(QWizard):
             self, 'Load File', path_str(Path('~').expanduser()), formats)
         if filename != '':
             with open(filename, 'r', encoding='utf8') as file:
-                tree.og_dir_dict = json.load(file)
+                # tree.og_dir_dict = json.load(file)
+                super_dict = json.load(file)
+                self.ui.textarea_wp3_0.setPlainText(super_dict['software_choice'])
+                tree.og_dir_dict = super_dict['dir_dict']
                 dict_readable(tree.og_dir_dict)
                 tree.anon_dir_dict = _pickle.loads(_pickle.dumps(tree.og_dir_dict))
                 tree.refresh_treeview(tree.og_model, tree.og_tree, tree.og_dir_dict)
+                tree.load_checkstates_root(tree.og_dir_dict)
 
 
 class TreeOperations:
@@ -441,6 +458,38 @@ class TreeOperations:
         else:
             self.anon_dir_dict = _pickle.loads(_pickle.dumps(self.og_dir_dict))
         self.refresh_treeview(self.og_model, self.og_tree, self.og_dir_dict)
+
+    def save_checkstates(self, dir_dict, item):
+        parent = item.parent()
+        if parent is None:
+            parent = self.og_model.invisibleRootItem()
+        dirkey = item.data(Qt.UserRole)
+        row = item.row()
+        dir_dict[dirkey]['selection_state'] = parent.child(row, 0).checkState()
+        dir_dict[dirkey]['exclusion_state'] = parent.child(row, 1).checkState()
+        for child_ix in range(item.rowCount()):
+            self.save_checkstates(dir_dict, item.child(child_ix))
+
+    def save_checkstates_root(self, dir_dict):
+        root = self.og_model.invisibleRootItem()
+        for child_ix in range(root.rowCount()):
+            self.save_checkstates(dir_dict, root.child(child_ix))
+
+    def load_checkstates(self, dir_dict, item):
+        parent = item.parent()
+        if parent is None:
+            parent = self.og_model.invisibleRootItem()
+        dirkey = item.data(Qt.UserRole)
+        row = item.row()
+        parent.child(row, 0).setCheckState(dir_dict[dirkey]['selection_state'])
+        parent.child(row, 1).setCheckState(dir_dict[dirkey]['exclusion_state'])
+        for child_ix in range(item.rowCount()):
+            self.load_checkstates(dir_dict, item.child(child_ix))
+
+    def load_checkstates_root(self, dir_dict):
+        root = self.og_model.invisibleRootItem()
+        for child_ix in range(root.rowCount()):
+            self.load_checkstates(dir_dict, root.child(child_ix))
 
     @staticmethod
     def header_autoresizable(header):
