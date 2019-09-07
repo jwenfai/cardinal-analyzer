@@ -100,9 +100,9 @@ class Main(QWizard):
             self.ui.og_tree_1, self.threadpool, self.spinner,
             self.ui.select_btn_1, self.ui.save_btn_1, self.ui.load_btn_1)
 
-        tree0.load_dir_dicts(self.demo_dir_dict)
+        tree0.load_dir_dicts(self.demo_dir_dict, expand_all=True)
         self.ui.reset_demo_btn.clicked.connect(
-            lambda: tree0.refresh_treeview(tree0.og_model, tree0.og_tree, self.demo_dir_dict))
+            lambda: tree0.refresh_treeview(tree0.og_model, tree0.og_tree, self.demo_dir_dict, expand_all=True))
         tree1.select_btn.clicked.connect(lambda: self.select_tree_root(tree1))
         tree1.save_btn.clicked.connect(lambda: self.save_collected_data(tree1))
         tree1.load_btn.clicked.connect(lambda: self.load_collected_data(tree1))
@@ -170,6 +170,12 @@ class Main(QWizard):
                 tree.anon_dir_dict = _pickle.loads(_pickle.dumps(tree.og_dir_dict))
                 tree.refresh_treeview(tree.og_model, tree.og_tree, tree.og_dir_dict)
                 tree.load_checkstates_root(tree.og_dir_dict)
+                tree.save_btn.setEnabled(True)
+
+
+class QStandardNumItem(QStandardItem):
+    def __lt__(self, other):
+        return int(self.text()) < int(other.text())
 
 
 class TreeOperations:
@@ -199,9 +205,10 @@ class TreeOperations:
         self.og_model.setHorizontalHeaderLabels(og_model_headers)
         self.refresh_treeview(self.og_model, self.og_tree, self.og_dir_dict)
         self.og_model.itemChanged.connect(self.on_item_change)
+        self.og_tree.expanded.connect(lambda: self.header_autoresizable(self.og_tree.header()))
 
     def refresh_treeview(self, model, tree, dir_dict,
-                         checkable=True, anon_tree=False):
+                         checkable=True, anon_tree=False, expand_all=False):
         model.removeRow(0)
         root_item = model.invisibleRootItem()
         # convention: dir_dict key starts at 1 since 0==False
@@ -210,24 +217,28 @@ class TreeOperations:
         else:
             first_dirkey = 1
         self.append_all_children(first_dirkey, dir_dict, root_item, checkable, anon_tree)
-        tree.expandAll()
+        if expand_all:
+            tree.expandAll()
+        else:
+            tree.expandToDepth(0)
         self.header_autoresizable(tree.header())
 
     def append_all_children(self, dirkey, dir_dict, parent_item,
                             checkable=True, anon_tree=False):
         if dirkey in dir_dict:
             dirname = QStandardItem(dir_dict[dirkey]['dirname'])
-            cumfiles = QStandardItem(str(dir_dict[dirkey]['cumfiles']))
+            cumfiles = QStandardNumItem(str(dir_dict[dirkey]['cumfiles']))
             exclusion = QStandardItem('')
+            # display ISO date only; exclude time
             mtime = QStandardItem(QDateTime.fromSecsSinceEpoch(
-                dir_dict[dirkey]['mtime']).toString(Qt.ISODate))
+                dir_dict[dirkey]['mtime']).toString(Qt.ISODate)[:-9])
             items = [dirname, exclusion, cumfiles, mtime]
             dirname.setData(dirkey, Qt.UserRole)
             if checkable:
                 dirname.setFlags(
                     Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
                     Qt.ItemIsUserCheckable)
-                dirname.setCheckState(Qt.Checked)
+                dirname.setCheckState(Qt.Unchecked)
                 exclusion.setFlags(
                     Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
                     Qt.ItemIsUserCheckable)
@@ -264,7 +275,7 @@ class TreeOperations:
             elif item_checkstate in (Qt.Checked, Qt.PartiallyChecked):
                 if dirkey in self.unchecked_items_set:
                     self.unchecked_items_set.remove(dirkey)
-            self.recalculate_cumfiles()
+            # self.recalculate_cumfiles()
         if item.column() == 1:
             self.dir_exclusion(item, root)
 
@@ -410,13 +421,13 @@ class TreeOperations:
         self.unchecked_items_set = set()
         self.og_model.removeRow(0)
 
-    def load_dir_dicts(self, og_dir_dict, anon_dir_dict=None):
+    def load_dir_dicts(self, og_dir_dict, anon_dir_dict=None, expand_all=False):
         self.og_dir_dict = _pickle.loads(_pickle.dumps(og_dir_dict))
         if anon_dir_dict is not None:
             self.anon_dir_dict = _pickle.loads(_pickle.dumps(anon_dir_dict))
         else:
             self.anon_dir_dict = _pickle.loads(_pickle.dumps(self.og_dir_dict))
-        self.refresh_treeview(self.og_model, self.og_tree, self.og_dir_dict)
+        self.refresh_treeview(self.og_model, self.og_tree, self.og_dir_dict, expand_all=expand_all)
 
     def save_checkstates(self, dir_dict, item):
         parent = item.parent()
@@ -440,8 +451,8 @@ class TreeOperations:
             parent = self.og_model.invisibleRootItem()
         dirkey = item.data(Qt.UserRole)
         row = item.row()
-        parent.child(row, 0).setCheckState(dir_dict[dirkey]['selection_state'])
         parent.child(row, 1).setCheckState(dir_dict[dirkey]['exclusion_state'])
+        parent.child(row, 0).setCheckState(dir_dict[dirkey]['selection_state'])
         for child_ix in range(item.rowCount()):
             self.load_checkstates(dir_dict, item.child(child_ix))
 
