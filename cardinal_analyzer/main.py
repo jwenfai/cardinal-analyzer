@@ -221,6 +221,8 @@ class TreeOperations:
             tree.expandAll()
         else:
             tree.expandToDepth(0)
+        # sort by first column (folder name) every time tree is built/rebuilt
+        tree.sortByColumn(0, Qt.AscendingOrder)
         self.header_autoresizable(tree.header())
 
     def append_all_children(self, dirkey, dir_dict, parent_item,
