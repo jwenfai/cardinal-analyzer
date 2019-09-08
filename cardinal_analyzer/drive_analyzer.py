@@ -45,24 +45,24 @@ def record_stat(root):
             dirparent = False  # marks node as top-level, so it has no parent
         else:
             dirparent = os.path.split(dirpath)[0]
+        stat_attr = ['mode', 'ino', 'dev', 'nlink', 'uid', 'gid', 'size',
+                     'atime', 'mtime', 'ctime']
+        # st_ino is the unique ID for a node/folder/file
         filestat_list = []
         for f_ in filenames:
             f_path = os.path.join(dirpath, f_)
             if os.access(f_path, os.R_OK):
                 try:
                     f_stat = os.stat(f_path)
-                    filestat_list.append({
-                        'mode': f_stat.st_mode,
-                        'ino': f_stat.st_ino,  # unique ID for a node/folder/file
-                        'dev': f_stat.st_dev,
-                        'nlink': f_stat.st_nlink,
-                        'uid': f_stat.st_uid,
-                        'gid': f_stat.st_gid,
-                        'size': f_stat.st_size,
-                        'atime': f_stat.st_atime,
-                        'mtime': f_stat.st_mtime,
-                        'ctime': f_stat.st_ctime
-                    })
+                    f_dict = dict()
+                    attr_avail = f_stat.__dir__()
+                    for attr in stat_attr:
+                        if 'st_' + attr in attr_avail:
+                            f_dict[attr] = eval('f_stat.st_' + attr)
+                            # equivalent to calling f_stat.st_ino, f_stat.st_dev etc.
+                        else:
+                            f_dict[attr] = None
+                    filestat_list.append(f_dict)
                 except OSError:
                     pass
         dir_stat = os.stat(dirpath)
@@ -74,20 +74,17 @@ def record_stat(root):
             'nfiles': len(filenames),
             'cumfiles': len(filenames),
             'filestat': filestat_list,
-            'mode': dir_stat.st_mode,
-            'ino': dir_stat.st_ino,  # unique ID for a node/folder/file
-            'dev': dir_stat.st_dev,
-            'nlink': dir_stat.st_nlink,
-            'uid': dir_stat.st_uid,
-            'gid': dir_stat.st_gid,
-            'size': dir_stat.st_size,
-            'atime': dir_stat.st_atime,
-            'mtime': dir_stat.st_mtime,
-            'ctime': dir_stat.st_ctime,
             'selection_state': None,
             'exclusion_state': None,
             'aggfilestat': None
         }
+        attr_avail = dir_stat.__dir__()
+        for attr in stat_attr:
+            if 'st_' + attr in attr_avail:
+                dir_dict[dirorder][attr] = eval('dir_stat.st_' + attr)
+                # equivalent to calling dir_stat.st_ino, dir_stat.st_dev etc.
+            else:
+                dir_dict[dirorder][attr] = None
         order_dict[dirpath] = dirorder
         dirorder += 1
 

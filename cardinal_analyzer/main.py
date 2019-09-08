@@ -231,9 +231,7 @@ class TreeOperations:
             dirname = QStandardItem(dir_dict[dirkey]['dirname'])
             cumfiles = QStandardNumItem(str(dir_dict[dirkey]['cumfiles']))
             exclusion = QStandardItem('')
-            # display ISO date only; exclude time
-            mtime = QStandardItem(QDateTime.fromSecsSinceEpoch(
-                dir_dict[dirkey]['mtime']).toString(Qt.ISODate)[:-9])
+            mtime = self.find_mtime(dirkey, dir_dict)
             items = [dirname, exclusion, cumfiles, mtime]
             dirname.setData(dirkey, Qt.UserRole)
             if checkable:
@@ -280,6 +278,39 @@ class TreeOperations:
             # self.recalculate_cumfiles()
         if item.column() == 1:
             self.dir_exclusion(item, root)
+
+    def find_mtime(self, dirkey, dir_dict):
+        # display ISO date only; exclude time
+        # time priority:
+        # 1. latest edited file's mtime
+        # 2. folder mtime
+        # 3. folder atime
+        # 4. folder ctime
+        # mtime = QStandardItem(QDateTime.fromSecsSinceEpoch(
+        #     dir_dict[dirkey]['mtime']).toString(Qt.ISODate)[:-9])
+        def valid_value(value):
+            if value is not None:
+                if value > 0:
+                    return value
+        file_mtime_list = []
+        if 'filestat' in dir_dict[dirkey]:  # filestat absent in demo_dir_dict
+            for filestat in dir_dict[dirkey]['filestat']:
+                if valid_value(filestat['mtime']):
+                    file_mtime_list.append(filestat['mtime'])
+        if len(file_mtime_list) > 0:
+            mtime = max(file_mtime_list)
+        elif len(file_mtime_list) == 0:
+            if valid_value(dir_dict[dirkey]['mtime']):
+                mtime = dir_dict[dirkey]['mtime']
+            else:
+                if valid_value(dir_dict[dirkey]['atime']):
+                    mtime = dir_dict[dirkey]['atime']
+                else:
+                    if valid_value(dir_dict[dirkey]['ctime']):
+                        mtime = dir_dict[dirkey]['ctime']
+        mtime = QStandardItem(QDateTime.fromSecsSinceEpoch(
+            mtime).toString(Qt.ISODate)[:-9])
+        return mtime
 
     def recalculate_cumfiles(self):
         replacement_cumfiles_list = []
