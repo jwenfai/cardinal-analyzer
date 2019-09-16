@@ -6,7 +6,7 @@ class WizardUI(object):
         wizard.setObjectName("wizard")
         wizard.resize(732, 425)
         wizard.setMinimumSize(QtCore.QSize(575, 400))
-        wizard.setWindowTitle("Cardinal-Analyzer")
+        wizard.setWindowTitle("Digital Collection Annotation Assistant")
         wizard.setOptions(QtWidgets.QWizard.NoBackButtonOnStartPage | QtWidgets.QWizard.NoCancelButton)
         wizard.setWizardStyle(QtWidgets.QWizard.ModernStyle)
 
@@ -73,12 +73,14 @@ class WizardUI(object):
         self.horizontallayout_wp2_0 = QtWidgets.QHBoxLayout()
         self.horizontallayout_wp2_0.setObjectName("horizontallayout_wp2_0")
 
+        self.og_tree_key = QtWidgets.QTreeView()
         self.og_tree_0 = QtWidgets.QTreeView()
         self.reset_demo_btn = QtWidgets.QPushButton()
         self.reset_demo_btn.resize(self.reset_demo_btn.sizeHint())
         self.horizontallayout_wp2_0.addStretch(1)
         self.horizontallayout_wp2_0.addWidget(self.reset_demo_btn)
         self.horizontallayout_wp2_0.addStretch(1)
+        self.verticallayout_wp2_0.addWidget(self.og_tree_key)
         self.verticallayout_wp2_0.addWidget(self.og_tree_0)
         self.verticallayout_wp2_0.addLayout(self.horizontallayout_wp2_0)
 
@@ -109,11 +111,15 @@ class WizardUI(object):
         self.save_btn_1.resize(self.save_btn_1.sizeHint())
         self.save_btn_1.setDisabled(True)
         self.load_btn_1 = QtWidgets.QPushButton()
-        self.load_btn_1.resize(self.save_btn_1.sizeHint())
+        self.load_btn_1.resize(self.load_btn_1.sizeHint())
+        self.less_btn_1 = QtWidgets.QPushButton()
+        self.less_btn_1.resize(self.less_btn_1.sizeHint())
+        self.less_btn_1.setDisabled(True)
         self.horizontallayout_wp4_0.addStretch(1)
         self.horizontallayout_wp4_0.addWidget(self.select_btn_1)
         self.horizontallayout_wp4_0.addWidget(self.save_btn_1)
         self.horizontallayout_wp4_0.addWidget(self.load_btn_1)
+        self.horizontallayout_wp4_0.addWidget(self.less_btn_1)
         self.horizontallayout_wp4_0.addStretch(1)
         self.verticallayout_wp4_0.addWidget(self.og_tree_1)
         self.verticallayout_wp4_0.addLayout(self.horizontallayout_wp4_0)
@@ -180,7 +186,7 @@ class WizardUI(object):
             "i'll provide text later) above a tree widget like in (3.) but "
             "populated with just a few fake folders (e.g., named Folder 1-4) "
             "so users can try out and learn the functionality"))
-        self.reset_demo_btn.setText(_translate("Wizard", "Reset Demo"))
+        self.reset_demo_btn.setText(_translate("Wizard", "Reset"))
         self.reset_demo_btn.setToolTip(_translate(
             "Wizard", "Return example folder structure to initial state."))
 
@@ -196,19 +202,23 @@ class WizardUI(object):
             "Wizard",
             "(A) a small text label with some brief instructions I will "
             "provide later"))
-        self.select_btn_1.setText(_translate("Wizard", "Select Root"))
+        self.select_btn_1.setText(_translate("Wizard", "Find folders"))
         self.select_btn_1.setToolTip(_translate(
             "Wizard", "Select <b>personal folder</b> for data collection."))
-        self.save_btn_1.setText(_translate("Wizard", "Save Data"))
+        self.save_btn_1.setText(_translate("Wizard", "Save"))
         self.save_btn_1.setToolTip(_translate(
             "Wizard",
             "Save folder structure data and software choices locally as a "
             "JSON file."))
-        self.load_btn_1.setText(_translate("Wizard", "Load Data"))
+        self.load_btn_1.setText(_translate("Wizard", "Load"))
         self.load_btn_1.setToolTip(_translate(
             "Wizard",
             "Load folder structure data and software choices from a "
             "JSON file."))
+        self.less_btn_1.setText(_translate("Wizard", "Show less"))
+        self.less_btn_1.setToolTip(_translate(
+            "Wizard",
+            "Collapses all folders except the root."))
         # page 5 labels
         self.wizardpage5.setTitle(_translate("Wizard", "Finished!"))
         self.wizardpage5.setSubTitle(_translate(

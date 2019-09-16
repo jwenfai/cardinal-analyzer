@@ -69,19 +69,40 @@ class Main(QWizard):
         # connect signals
         self.threadpool = QThreadPool()
 
+        self.keytree_dir_dict = {
+            1: {'dirname': 'Home', 'dirparent': False, 'nfiles': 78, 'cumfiles': 123,
+                'childkeys': {2}, 'mtime': 1330884000.0, 'selection_state': 1, 'exclusion_state': 0,
+                'description': "Partial: some contents (files and/or folders) are relevant to the collection"},
+            2: {'dirname': 'Work files', 'dirparent': 1, 'nfiles': 32, 'cumfiles': 45,
+                'childkeys': {3, 4}, 'mtime': 1330797600.0, 'selection_state': 1, 'exclusion_state': 0,
+                'description': "Partial: some contents (files and/or folders) are relevant to the collection"},
+            3: {'dirname': 'Travel photos', 'dirparent': 2, 'nfiles': 6, 'cumfiles': 6,
+                'childkeys': set(), 'mtime': 1330624800.0, 'selection_state': 0, 'exclusion_state': 0,
+                'description': "Unchecked: this folder is simply not relevant to the collection"},
+            4: {'dirname': 'Project A', 'dirparent': 2, 'nfiles': 1, 'cumfiles': 7,
+                'childkeys': {5, 6}, 'mtime': 1325527200.0, 'selection_state': 2, 'exclusion_state': 0,
+                'description': "Checked: this folder is relevant to the collection"},
+            5: {'dirname': 'Drafts', 'dirparent': 4, 'nfiles': 2, 'cumfiles': 2,
+                'childkeys': set(), 'mtime': 1255891200.0, 'selection_state': 2, 'exclusion_state': 0,
+                'description': "Checked: this folder is relevant to the collection"},
+            6: {'dirname': 'Bank transfer', 'dirparent': 4, 'nfiles': 4, 'cumfiles': 4,
+                'childkeys': set(), 'mtime': 1322202000.0, 'selection_state': 0, 'exclusion_state': 2,
+                'description': "Excluded: this folder is excluded (e.g., it contains sensitive information/work)"},
+        }
+
         self.demo_dir_dict = {
             1: {'dirname': 'folder 1', 'dirparent': False, 'nfiles': 78, 'cumfiles': 123,
-                'childkeys': {2}, 'mtime': 1330884000.0},
+                'childkeys': {2}, 'mtime': 1330884000.0, 'selection_state': None, 'exclusion_state': None},
             2: {'dirname': 'folder 2', 'dirparent': 1, 'nfiles': 32, 'cumfiles': 45,
-                'childkeys': {3, 4}, 'mtime': 1330873200.0},
+                'childkeys': {3, 4}, 'mtime': 1330797600.0, 'selection_state': None, 'exclusion_state': None},
             3: {'dirname': 'folder 3', 'dirparent': 2, 'nfiles': 6, 'cumfiles': 6,
-                'childkeys': set(), 'mtime': 1330869600.0},
+                'childkeys': set(), 'mtime': 1330624800.0, 'selection_state': None, 'exclusion_state': None},
             4: {'dirname': 'folder 4', 'dirparent': 2, 'nfiles': 1, 'cumfiles': 7,
-                'childkeys': {5, 6}, 'mtime': 1330866000.0},
+                'childkeys': {5, 6}, 'mtime': 1325527200.0, 'selection_state': None, 'exclusion_state': None},
             5: {'dirname': 'folder 5', 'dirparent': 4, 'nfiles': 2, 'cumfiles': 2,
-                'childkeys': set(), 'mtime': 1330862400.0},
+                'childkeys': set(), 'mtime': 1255891200.0, 'selection_state': None, 'exclusion_state': None},
             6: {'dirname': 'folder 6', 'dirparent': 4, 'nfiles': 4, 'cumfiles': 4,
-                'childkeys': set(), 'mtime': 1330855200.0},
+                'childkeys': set(), 'mtime': 1322202000.0, 'selection_state': None, 'exclusion_state': None},
         }
 
         self.spinner = QtWaitingSpinner(self, True, True, Qt.ApplicationModal)
@@ -94,18 +115,22 @@ class Main(QWizard):
         self.spinner.setInnerRadius(15)
         self.spinner.setRevolutionsPerSecond(1)
 
+        keytree = KeyTreeOperations(
+            self.ui.og_tree_key, self.threadpool, self.spinner)
         tree0 = TreeOperations(
             self.ui.og_tree_0, self.threadpool, self.spinner)
         tree1 = TreeOperations(
             self.ui.og_tree_1, self.threadpool, self.spinner,
-            self.ui.select_btn_1, self.ui.save_btn_1, self.ui.load_btn_1)
+            self.ui.select_btn_1, self.ui.save_btn_1, self.ui.load_btn_1, self.ui.less_btn_1)
 
+        keytree.load_dir_dicts(self.keytree_dir_dict, checkable=False, expand_all=True)
         tree0.load_dir_dicts(self.demo_dir_dict, expand_all=True)
         self.ui.reset_demo_btn.clicked.connect(
             lambda: tree0.refresh_treeview(tree0.og_model, tree0.og_tree, self.demo_dir_dict, expand_all=True))
         tree1.select_btn.clicked.connect(lambda: self.select_tree_root(tree1))
         tree1.save_btn.clicked.connect(lambda: self.save_collected_data(tree1))
         tree1.load_btn.clicked.connect(lambda: self.load_collected_data(tree1))
+        tree1.less_btn.clicked.connect(lambda: self.expand_to_depth(tree1, 0))
         self.ui.consent_savebutton.clicked.connect(self.save_consent)
         self.ui.wizardpage1.registerField("consentbox*", self.ui.consentbox)
 
@@ -115,10 +140,10 @@ class Main(QWizard):
         if dirpath:
             tree.root_path = Path(dirpath)
             tree.build_tree_structure_threaded(tree.root_path)
-            tree.save_btn.setEnabled(True)
         else:
             tree.clear_root()
             tree.save_btn.setDisabled(True)
+            tree.less_btn.setDisabled(True)
 
     def save_consent(self):
         formats = "Text (*.txt)"
@@ -169,8 +194,11 @@ class Main(QWizard):
                 dict_readable(tree.og_dir_dict)
                 tree.anon_dir_dict = _pickle.loads(_pickle.dumps(tree.og_dir_dict))
                 tree.refresh_treeview(tree.og_model, tree.og_tree, tree.og_dir_dict)
-                tree.load_checkstates_root(tree.og_dir_dict)
                 tree.save_btn.setEnabled(True)
+                tree.less_btn.setEnabled(True)
+
+    def expand_to_depth(self, tree, depth):
+        tree.og_tree.expandToDepth(depth)
 
 
 class QStandardNumItem(QStandardItem):
@@ -184,7 +212,7 @@ class TreeOperations:
     function definitions with minor variable changes, hopefully making
     debugging easier."""
     def __init__(self, og_tree, threadpool, spinner,
-                 select_btn=None, save_btn=None, load_btn=None):
+                 select_btn=None, save_btn=None, load_btn=None, less_btn=None):
         og_model_headers = ['Folder Name', 'Exclude', 'Accessible Files',
                             'Date Modified']
         self.unchecked_items_set = set()
@@ -195,6 +223,7 @@ class TreeOperations:
         self.select_btn = select_btn
         self.save_btn = save_btn
         self.load_btn = load_btn
+        self.less_btn = less_btn
 
         # Initialize model and tree
         self.og_tree = og_tree
@@ -218,7 +247,8 @@ class TreeOperations:
             first_dirkey = 1
         self.append_all_children(first_dirkey, dir_dict, root_item, checkable, anon_tree)
         if expand_all:
-            tree.expandAll()
+            tree.expandToDepth(1000)
+            # 1000 is arbitrary number, using .expandAll() causes children duplication bug
         else:
             tree.expandToDepth(0)
         # sort by first column (folder name) every time tree is built/rebuilt
@@ -234,16 +264,30 @@ class TreeOperations:
             mtime = self.find_mtime(dirkey, dir_dict)
             items = [dirname, exclusion, cumfiles, mtime]
             dirname.setData(dirkey, Qt.UserRole)
-            if checkable:
+            if checkable is True:
                 dirname.setFlags(
                     Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
                     Qt.ItemIsUserCheckable)
-                dirname.setCheckState(Qt.Unchecked)
                 exclusion.setFlags(
                     Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
                     Qt.ItemIsUserCheckable)
-                exclusion.setCheckState(Qt.Unchecked)
                 cumfiles.setFlags(Qt.ItemIsEnabled)
+            elif checkable is False:
+                dirname.setFlags(
+                    Qt.ItemIsEnabled | Qt.ItemIsUserTristate)
+                exclusion.setFlags(
+                    Qt.ItemIsEnabled | Qt.ItemIsUserTristate)
+                cumfiles.setFlags(Qt.ItemIsEnabled)
+            selection_state = dir_dict[dirkey]['selection_state']
+            exclusion_state = dir_dict[dirkey]['exclusion_state']
+            if selection_state is not None:
+                dirname.setCheckState(selection_state)
+            else:
+                dirname.setCheckState(Qt.Unchecked)
+            if exclusion_state is not None:
+                exclusion.setCheckState(exclusion_state)
+            else:
+                exclusion.setCheckState(Qt.Unchecked)
             parent_item.appendRow(items)
             child_ix = parent_item.rowCount() - 1
             parent_item = parent_item.child(child_ix)
@@ -282,21 +326,28 @@ class TreeOperations:
     def find_mtime(self, dirkey, dir_dict):
         # display ISO date only; exclude time
         # time priority:
-        # 1. latest edited file's mtime
+        # 1. latest edited file's mtime (incl. files in child folders)
         # 2. folder mtime
         # 3. folder atime
         # 4. folder ctime
         # mtime = QStandardItem(QDateTime.fromSecsSinceEpoch(
         #     dir_dict[dirkey]['mtime']).toString(Qt.ISODate)[:-9])
+
         def valid_value(value):
             if value is not None:
                 if value > 0:
                     return value
+
+        def recursive_mtime(dirkey_, dir_dict_, mtime_list):
+            if 'filestat' in dir_dict_[dirkey_]:  # filestat absent in demo_dir_dict
+                for filestat_ in dir_dict_[dirkey_]['filestat']:
+                    if valid_value(filestat_['mtime']):
+                        mtime_list.append(filestat_['mtime'])
+            for childkey in dir_dict_[dirkey_]['childkeys']:
+                recursive_mtime(childkey, dir_dict_, mtime_list)
+
         file_mtime_list = []
-        if 'filestat' in dir_dict[dirkey]:  # filestat absent in demo_dir_dict
-            for filestat in dir_dict[dirkey]['filestat']:
-                if valid_value(filestat['mtime']):
-                    file_mtime_list.append(filestat['mtime'])
+        recursive_mtime(dirkey, dir_dict, file_mtime_list)
         if len(file_mtime_list) > 0:
             mtime = max(file_mtime_list)
         elif len(file_mtime_list) == 0:
@@ -356,7 +407,9 @@ class TreeOperations:
                 parent_item.setCheckState(Qt.PartiallyChecked)
             if (item_checkstate in (Qt.Unchecked, Qt.PartiallyChecked)
                     and parent_item.checkState() == Qt.Checked
-                    and parent_item.child(item.row(), 1).checkState() == Qt.Unchecked):
+                    # only account for non-excluded items
+                    and parent_item.child(item.row(), 1).checkState() in (
+                            Qt.Unchecked, Qt.PartiallyChecked)):
                 parent_item.setCheckState(Qt.PartiallyChecked)
 
     def all_siblings_checked(self, item):
@@ -367,7 +420,9 @@ class TreeOperations:
             parent_item = item.parent()
             nchild = parent_item.rowCount()
             for child_ix in range(nchild):
-                if parent_item.child(child_ix, 1).checkState() == Qt.Unchecked:
+                # only account for non-excluded items
+                if parent_item.child(child_ix, 1).checkState() in (
+                        Qt.Unchecked, Qt.PartiallyChecked):
                     if parent_item.child(child_ix).checkState() in (
                             Qt.Unchecked, Qt.PartiallyChecked):
                         all_checked = False
@@ -446,6 +501,7 @@ class TreeOperations:
         self.og_dir_dict = compute_stat(self.og_dir_dict)
         self.refresh_treeview(self.og_model, self.og_tree, self.og_dir_dict)
         self.save_btn.setEnabled(True)
+        self.less_btn.setEnabled(True)
         self.spinner.stop()
 
     def clear_root(self):
@@ -454,13 +510,13 @@ class TreeOperations:
         self.unchecked_items_set = set()
         self.og_model.removeRow(0)
 
-    def load_dir_dicts(self, og_dir_dict, anon_dir_dict=None, expand_all=False):
+    def load_dir_dicts(self, og_dir_dict, anon_dir_dict=None, checkable=True, expand_all=False):
         self.og_dir_dict = _pickle.loads(_pickle.dumps(og_dir_dict))
         if anon_dir_dict is not None:
             self.anon_dir_dict = _pickle.loads(_pickle.dumps(anon_dir_dict))
         else:
             self.anon_dir_dict = _pickle.loads(_pickle.dumps(self.og_dir_dict))
-        self.refresh_treeview(self.og_model, self.og_tree, self.og_dir_dict, expand_all=expand_all)
+        self.refresh_treeview(self.og_model, self.og_tree, self.og_dir_dict, checkable=checkable, expand_all=expand_all)
 
     def save_checkstates(self, dir_dict, item):
         parent = item.parent()
@@ -478,22 +534,6 @@ class TreeOperations:
         for child_ix in range(root.rowCount()):
             self.save_checkstates(dir_dict, root.child(child_ix))
 
-    def load_checkstates(self, dir_dict, item):
-        parent = item.parent()
-        if parent is None:
-            parent = self.og_model.invisibleRootItem()
-        dirkey = item.data(Qt.UserRole)
-        row = item.row()
-        parent.child(row, 1).setCheckState(dir_dict[dirkey]['exclusion_state'])
-        parent.child(row, 0).setCheckState(dir_dict[dirkey]['selection_state'])
-        for child_ix in range(item.rowCount()):
-            self.load_checkstates(dir_dict, item.child(child_ix))
-
-    def load_checkstates_root(self, dir_dict):
-        root = self.og_model.invisibleRootItem()
-        for child_ix in range(root.rowCount()):
-            self.load_checkstates(dir_dict, root.child(child_ix))
-
     @staticmethod
     def header_autoresizable(header):
         """ Resize all sections to content and user interactive,
@@ -505,6 +545,69 @@ class TreeOperations:
             width = header.sectionSize(column)
             header.setSectionResizeMode(column, QHeaderView.Interactive)
             header.resizeSection(column, width)
+
+
+class KeyTreeOperations(TreeOperations):
+    def __init__(self, og_tree, threadpool, spinner,
+                 select_btn=None, save_btn=None, load_btn=None, less_btn=None):
+        # super().__init__(og_tree, threadpool, spinner, select_btn, save_btn, load_btn, less_btn)
+        og_model_headers = ['Folder Name', 'Exclude', 'Key']
+        self.unchecked_items_set = set()
+        self.expanded_items_list = []
+        self.threadpool = threadpool
+        self.spinner = spinner
+        self.root_path = Path('~').expanduser()
+        self.select_btn = select_btn
+        self.save_btn = save_btn
+        self.load_btn = load_btn
+        self.less_btn = less_btn
+
+        # Initialize model and tree
+        self.og_tree = og_tree
+        self.og_dir_dict, self.anon_dir_dict = dict(), dict()
+        self.og_model = QStandardItemModel()
+        self.og_tree.setModel(self.og_model)
+        self.og_model.setHorizontalHeaderLabels(og_model_headers)
+        self.refresh_treeview(self.og_model, self.og_tree, self.og_dir_dict)
+        self.og_tree.setItemsExpandable(False)
+
+    def append_all_children(self, dirkey, dir_dict, parent_item,
+                            checkable=True, anon_tree=False):
+        if dirkey in dir_dict:
+            dirname = QStandardItem(dir_dict[dirkey]['dirname'])
+            exclusion = QStandardItem('')
+            description = QStandardItem(dir_dict[dirkey]['description'])
+            items = [dirname, exclusion, description]
+            dirname.setData(dirkey, Qt.UserRole)
+            if checkable is True:
+                dirname.setFlags(
+                    Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
+                    Qt.ItemIsUserCheckable)
+                exclusion.setFlags(
+                    Qt.ItemIsEnabled | Qt.ItemIsUserTristate |
+                    Qt.ItemIsUserCheckable)
+            elif checkable is False:
+                dirname.setFlags(
+                    Qt.ItemIsEnabled | Qt.ItemIsUserTristate)
+                exclusion.setFlags(
+                    Qt.ItemIsEnabled | Qt.ItemIsUserTristate)
+            selection_state = dir_dict[dirkey]['selection_state']
+            exclusion_state = dir_dict[dirkey]['exclusion_state']
+            if selection_state is not None:
+                dirname.setCheckState(selection_state)
+            else:
+                dirname.setCheckState(Qt.Unchecked)
+            if exclusion_state is not None:
+                exclusion.setCheckState(exclusion_state)
+            else:
+                exclusion.setCheckState(Qt.Unchecked)
+            parent_item.appendRow(items)
+            child_ix = parent_item.rowCount() - 1
+            parent_item = parent_item.child(child_ix)
+            children_keys = dir_dict[dirkey]['childkeys']
+            for child_key in sorted(children_keys):
+                self.append_all_children(child_key, dir_dict, parent_item,
+                                         checkable, anon_tree)
 
 
 # the whole app
